@@ -1,0 +1,86 @@
+# PROJECT.md — test-case context for <project>
+
+The project-specific half of the QC-TCs method used by the **ennam-qaqc**
+plugin. The plugin's `qc-tcs` skill is the same for every project; this file is
+what makes it fit *this* one. Keep the section headings and numbers — the skill
+refers to them. A section you leave out falls back to the plugin defaults
+(`docs/CONTEXT_RESOLUTION.md` §5 in the plugin).
+
+---
+
+## 1. Project identity
+Project / product under test / platform (mobile, web, both) / repo type.
+
+## 2. Automation framework
+Which tool (Playwright, Cypress, Maestro, Appium, none/manual)? Where does
+automation code live? Does authoring test cases write any of it? Which skill or
+doc owns running them, and which wins on conflict?
+
+## 3. Where test cases live, and in what format
+Path pattern · areas/folders · skeleton file · where the case id goes and its
+format · scenario naming convention · parameterised-scenario syntax · whether
+shared setup blocks (`Background:`) are used · how a new file is placed and
+named · how steps are written (Given / When / Then style, copy quoting,
+seeding sentences, fixtures).
+
+## 4. Source of truth
+App-truth or spec-truth? (SKILL.md §1 A or B.) Where do specs live and how are
+they fetched? Where does a divergence get recorded?
+
+## 5. Authoring rule
+May the author launch the product while writing? If not, say so explicitly and
+say what to mark in the header instead (e.g. a COPY SOURCE note, SPEC-DIFFS
+"None recorded").
+
+## 6. Tag vocabulary
+Map each SKILL.md Kind to this project's tag, per slot (direction, check type,
+gates, platform, area, screen) and the tag order. Area tag per folder. State
+whether a priority scheme exists — if none, say "none, do not introduce one".
+Name the header triage block (`AUTOMATION CONVERTIBILITY`,
+`MAESTRO CONVERTIBILITY`, …).
+
+## 7. Error-handling scope
+Can the interface surface HTTP errors? Can the framework intercept/stub routes?
+If yes, status-code scenarios are in scope; if no, they are backend items.
+
+## 8. Exit paths to assert separately
+Mobile: system Back, in-app back, ✕, CTAs.
+Web: browser Back/Forward, in-page back, ✕, CTAs, direct URL entry / refresh.
+List any known divergence between them.
+
+## 9. Environment & preconditions
+Runnable environments · app/site identifier and how to confirm it · auth state
+and whether sign-in can be automated · which scenarios mutate real data.
+
+## 10. Where knowledge and queued work go
+Memory system, ticket tracker, or backlog path. How to record missing
+automation.
+
+## 11. Project-specific traps
+Past incidents worth warning the next author about. Keep each to 1–3 lines.
+
+## 12. Reference files
+Best worked example · good parameterised example · conventions doc · skeleton.
+
+## 13. Import / format constraints
+The test-case tool these files are imported into, and the grammar its importer
+accepts. **These rules beat every other convention, including older files.**
+Number each rule and say whether a violation refuses the whole file or rejects
+one scenario. Answer at least:
+- Tags allowed on the `Feature:` line? A description under `Feature:`?
+- `Background:` / `Rule:` allowed?
+- Must every scenario have Given + When + Then?
+- Comment placement (full-line only?)
+- Maximum scenario-title length; maximum tag length
+- `Scenario Outline` / `Examples` constraints
+- What the importer does not carry over (header comments, Feature name,
+  priority, status…) — so what must be inside the steps
+No importer → write "None — files are not imported".
+
+---
+
+## Provenance
+Filled by `/ennam-qaqc:init` when it drafts this file: one row per rule.
+
+| Section | Rule | Source (file:line, "user answer", or "plugin default") |
+|---|---|---|

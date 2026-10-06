@@ -1,0 +1,5 @@
+{
+  "projectContext": ".claude/skills/PROJECT.md",
+  "template": "test-cases/TEMPLATE.feature",
+  "testCasesRoot": "test-cases/"
+}

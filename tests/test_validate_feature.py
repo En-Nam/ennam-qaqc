@@ -1,4 +1,7 @@
 import importlib.util
+import io
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -161,6 +164,56 @@ class ScenarioLevelTest(unittest.TestCase):
     def test_g12_hash_in_title_is_warn(self):
         text = VALID.replace("Scenario: Positive - Save the form", "Scenario: Positive - Save the form # AC-01")
         self.assertEqual([(f.code, f.severity) for f in vf.validate(text)], [("G12", "WARN")])
+
+
+class CliAndHookTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def write(self, name, text):
+        path = Path(self.tmp.name) / name
+        path.write_text(text, encoding="utf-8")
+        return str(path)
+
+    def hook(self, payload):
+        err = io.StringIO()
+        code = vf.run_hook(io.StringIO(json.dumps(payload)), err)
+        return code, err.getvalue()
+
+    def test_cli_exit_codes_and_summary(self):
+        good = self.write("good.feature", VALID)
+        bad = self.write("bad.feature", VALID + "\nFeature: Second\n")
+        out = io.StringIO()
+        self.assertEqual(vf.run_cli([good], out), 0)
+        self.assertIn("good.feature: 0 FAIL, 0 WARN", out.getvalue())
+        self.assertEqual(vf.run_cli([good, bad], io.StringIO()), 1)
+
+    def test_cli_usage(self):
+        self.assertEqual(vf.main([]), 64)
+
+    def test_hook_ignores_non_feature_files(self):
+        path = self.write("notes.md", "Feature: x\nFeature: y\n")
+        self.assertEqual(self.hook({"tool_input": {"file_path": path}}), (0, ""))
+
+    def test_hook_ignores_template(self):
+        path = self.write("TEMPLATE.feature", "no feature line\n")
+        self.assertEqual(self.hook({"tool_input": {"file_path": path}}), (0, ""))
+
+    def test_hook_reports_fail_with_exit_2(self):
+        path = self.write("bad.feature", VALID + "\nFeature: Second\n")
+        code, err = self.hook({"tool_name": "Write", "tool_input": {"file_path": path}})
+        self.assertEqual(code, 2)
+        self.assertIn("G1", err)
+
+    def test_hook_passes_valid_file(self):
+        path = self.write("good.feature", VALID)
+        self.assertEqual(self.hook({"tool_input": {"file_path": path}}), (0, ""))
+
+    def test_hook_ignores_bad_payload(self):
+        err = io.StringIO()
+        self.assertEqual(vf.run_hook(io.StringIO("not json"), err), 0)
+        self.assertEqual(vf.run_hook(io.StringIO("[]"), err), 0)
 
 
 if __name__ == "__main__":

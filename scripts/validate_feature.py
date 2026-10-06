@@ -246,3 +246,49 @@ def _check_scenario(sc, add):
 
 def validate_file(path):
     return validate(Path(path).read_text(encoding="utf-8"))
+
+
+def run_cli(paths, out):
+    failed = False
+    for path in paths:
+        findings = validate_file(path)
+        for finding in findings:
+            out.write(finding.format(path) + "\n")
+        fails = sum(1 for f in findings if f.severity == "FAIL")
+        out.write("%s: %d FAIL, %d WARN\n" % (path, fails, len(findings) - fails))
+        failed = failed or fails > 0
+    return 1 if failed else 0
+
+
+def run_hook(stdin, err):
+    """PostToolUse: lint the .feature file just written. Exit 2 feeds stderr back to Claude."""
+    try:
+        payload = json.load(stdin)
+    except ValueError:
+        return 0
+    if not isinstance(payload, dict):
+        return 0
+    path = (payload.get("tool_input") or {}).get("file_path") or ""
+    if not path.endswith(".feature") or Path(path).name == "TEMPLATE.feature" or not Path(path).is_file():
+        return 0
+    fails = [f for f in validate_file(path) if f.severity == "FAIL"]
+    if not fails:
+        return 0
+    err.write("validate_feature.py: %s has %d FAIL finding(s); fix them before continuing.\n" % (path, len(fails)))
+    for finding in fails:
+        err.write(finding.format(path) + "\n")
+    return 2
+
+
+def main(argv=None):
+    args = sys.argv[1:] if argv is None else argv
+    if args == ["--hook"]:
+        return run_hook(sys.stdin, sys.stderr)
+    if not args or args[0].startswith("-"):
+        sys.stderr.write("usage: validate_feature.py FILE [FILE ...] | --hook\n")
+        return 64
+    return run_cli(args, sys.stdout)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

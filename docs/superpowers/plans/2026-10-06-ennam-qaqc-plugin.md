@@ -1912,3 +1912,22 @@ cd /Users/kai/Develop/ennam-qaqc
 git add docs/superpowers/plans/2026-10-06-ennam-qaqc-plugin.md
 git commit -m "docs: record 0.1.0 acceptance results" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
+
+---
+
+## Acceptance results (2026-10-06)
+
+All six checks passed in real sessions (plugin loaded from the local directory marketplace).
+
+| # | Result | Notes |
+|---|---|---|
+| A1 init (existing file) | Pass | Reported working by the user. |
+| A2 write from DR | Pass | `DR-003-005-01-search-form.md` → 100 scenarios (7 Outlines), 1,248 lines. Verified independently: validator 0 FAIL / 0 WARN; AC-01–AC-27 and Rules 1–15 all present; only PROJECT.md §6 tags, area + screen on every scenario; triage 67 / 24 / 9 from tag lines matches the report and the MAESTRO CONVERTIBILITY block; header blocks in the same order as the hand-written reference; only the `.feature` file was written. Reference file: 90 scenarios, 17 Outlines. |
+| A3 existing-file gate | Pass | Reported working by the user. |
+| A4 no context, free-text brief | Pass | Reported working by the user. |
+| A5 init drafts from a scan | Pass | Reported working by the user. |
+| A6 review | Pass | Reported working by the user. |
+
+Follow-ups (not blocking 0.1.0):
+- The agent used fewer `Scenario Outline`s than the house style (7 vs 17). Consider nudging it to group 3+ scenarios that differ only in input data.
+- Without Serena MCP tools the agent lists queued work in its report instead of writing it — expected.

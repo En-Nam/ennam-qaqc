@@ -61,12 +61,31 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py path/to/file.feature
 
 ## Installation
 
+The repository is private to the `En-Nam` organisation: you need read access,
+and git on your machine must be able to clone it (SSH key or HTTPS credentials).
+
 ```
 /plugin marketplace add En-Nam/ennam-qaqc
 /plugin install ennam-qaqc@ennam-qaqc
 ```
 
-Local development — in the project's `.claude/settings.json`:
+Enable it for everyone working in a project — commit this to the project's
+`.claude/settings.json`; teammates get it on their next session:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "ennam-qaqc": { "source": { "source": "github", "repo": "En-Nam/ennam-qaqc" } }
+  },
+  "enabledPlugins": { "ennam-qaqc@ennam-qaqc": true }
+}
+```
+
+Update to a newer version: `/plugin marketplace update ennam-qaqc`.
+
+Then, once per project: `/ennam-qaqc:init`.
+
+Local development — point a test project at your checkout instead:
 
 ```json
 {

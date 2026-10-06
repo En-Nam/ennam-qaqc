@@ -1,0 +1,13 @@
+{
+  "name": "ennam-qaqc",
+  "owner": {
+    "name": "Kai"
+  },
+  "plugins": [
+    {
+      "name": "ennam-qaqc",
+      "source": "./",
+      "description": "QA test-case authoring — Gherkin .feature files from any material"
+    }
+  ]
+}

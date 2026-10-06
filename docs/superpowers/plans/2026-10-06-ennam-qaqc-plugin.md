@@ -1253,15 +1253,7 @@ git commit -m "feat: add /ennam-qaqc:init command" -m "Co-Authored-By: Claude Op
 name: tc-agent
 description: Author one Gherkin .feature test-case file from any material (brief, DR, reference file), following the project's template, its context file and the QC-TCs method — decompose requirements, design coverage across 19 dimensions, write traceable scenarios, validate, and report triage and gaps. Used by /ennam-qaqc:write-tc.
 model: inherit
-allowedTools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-  - Bash
-  - WebFetch
-  - TodoWrite
+tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, TodoWrite
 ---
 
 # Test-Case Authoring Agent
@@ -1439,10 +1431,10 @@ Queued work: <recorded where the context file says | listed here: …>
 
 Run:
 ```bash
-head -14 agents/tc-agent.md
+head -7 agents/tc-agent.md
 grep -n 'SKILL.md §\|CONTEXT_RESOLUTION.md §' agents/tc-agent.md | grep -o '§[0-9.]*' | sort -u | tr '\n' ' '
 ```
-Expected: frontmatter `name: tc-agent`, tool list without any device/emulator/browser tools; cited sections all exist (SKILL §1–§13 incl. §4.1–§4.3, §6.1; CONTEXT_RESOLUTION §5).
+Expected: frontmatter `name: tc-agent` and a `tools:` line (the field Claude Code reads — an unknown field such as `allowedTools` is ignored and the agent would inherit every tool) without any device/emulator/browser tools; cited sections all exist (SKILL §1–§13 incl. §4.1–§4.3, §6.1; CONTEXT_RESOLUTION §5).
 
 - [ ] **Step 3: Commit**
 

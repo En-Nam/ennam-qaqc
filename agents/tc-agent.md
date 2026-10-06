@@ -2,15 +2,7 @@
 name: tc-agent
 description: Author one Gherkin .feature test-case file from any material (brief, DR, reference file), following the project's template, its context file and the QC-TCs method — decompose requirements, design coverage across 19 dimensions, write traceable scenarios, validate, and report triage and gaps. Used by /ennam-qaqc:write-tc.
 model: inherit
-allowedTools:
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
-  - Bash
-  - WebFetch
-  - TodoWrite
+tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, TodoWrite
 ---
 
 # Test-Case Authoring Agent

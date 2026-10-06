@@ -2,6 +2,13 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.1.1] - 2026-10-06
+
+### Changed
+
+- Internal build notes (`docs/superpowers/`) are no longer published with the
+  plugin. No functional change.
+
 ## [0.1.0] - 2026-10-06
 
 ### Added

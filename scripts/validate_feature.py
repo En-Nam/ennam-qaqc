@@ -52,7 +52,12 @@ Tag rules (only when tagRules is set):
   P10 FAIL title prefix disagrees with the direction tag (titlePrefix)
 
 Template (whenever a .claude/qaqc.json is found):
-  P11 WARN the template's IMPORT RULES comment is not copied verbatim before Feature:
+  P11 FAIL the template's IMPORT RULES comment is not copied verbatim before Feature:
+
+Triage line (only when tagRules.triage maps gate tags to MANUAL / BLOCKED):
+  P12 FAIL the header line `# Triage: A automatable / M manual / B blocked (N scenarios)`
+           disagrees with the scenarios' tags (first match wins: blocked > manual)
+  P12 WARN no such line in the header
 
 Python 3.7+, standard library only.
 """
@@ -69,6 +74,9 @@ MISSING_COLON_RE = re.compile(r"^(Feature|Background|Rule|Scenario Outline|Scena
 STEP_RE = re.compile(r"^(Given|When|Then|And|But|\*)\s+(\S.*)$")
 TAG_RE = re.compile(r"^@[^\s@#]+$")
 PLACEHOLDER_RE = re.compile(r"<([^<>]+)>")
+TRIAGE_LINE_RE = re.compile(
+    r"^#\s*Triage:\s*(\d+)\s+automatable\s*/\s*(\d+)\s+manual\s*/\s*(\d+)\s+blocked\s*\((\d+)\s+scenarios?\)",
+    re.IGNORECASE)
 UNOBSERVABLE_RE = re.compile(
     r"server[- ]side|\bdelivery logs?\b|\b(database|db) (record|row|table)s?\b|\bsource code\b"
     r"|\binspect\w*\b[^.]*\b(logs?|records?|database|backend|generator)\b",
@@ -265,6 +273,8 @@ def validate(text, rules=None, tag_rules=None, import_comment=None):
         _check_import_rules(rules, facts, scenarios, add)
     if tag_rules:
         _check_tag_rules(tag_rules, scenarios, add)
+        if isinstance(tag_rules.get("triage"), dict):
+            _check_triage_line(text, tag_rules["triage"], scenarios, feature_lines[0] if feature_lines else 1, add)
     if import_comment and feature_lines:
         _check_import_comment(text, import_comment, feature_lines[0], add)
 
@@ -392,6 +402,34 @@ def _check_tag_rules(tag_rules, scenarios, add):
             add("P10", "FAIL", sc.line, "%s scenario title must start with %r" % (direction, prefix))
 
 
+def triage_counts(triage, scenarios):
+    """(automatable, manual, blocked) by first match: blocked gates, then manual gates."""
+    blocked_tags = set(triage.get("blocked") or [])
+    manual_tags = set(triage.get("manual") or [])
+    counts = [0, 0, 0]
+    for sc in scenarios:
+        tags = {tag for _, tag in sc.tags}
+        counts[2 if tags & blocked_tags else 1 if tags & manual_tags else 0] += 1
+    return tuple(counts)
+
+
+def _check_triage_line(text, triage, scenarios, feature_line, add):
+    for no, raw in enumerate(text.splitlines()[:feature_line - 1], 1):
+        match = TRIAGE_LINE_RE.match(raw.strip())
+        if not match:
+            continue
+        stated = tuple(int(match.group(i)) for i in (1, 2, 3))
+        total = int(match.group(4))
+        actual = triage_counts(triage, scenarios)
+        if stated != actual or total != len(scenarios) or sum(stated) != total:
+            add("P12", "FAIL", no,
+                "triage line says %d automatable / %d manual / %d blocked (%d scenarios); the tags give "
+                "%d / %d / %d (%d scenarios)" % (stated + (total,) + actual + (len(scenarios),)))
+        return
+    add("P12", "WARN", feature_line,
+        "no '# Triage: A automatable / M manual / B blocked (N scenarios)' line in the header")
+
+
 def template_import_comment(template_text):
     """The comment block that starts '# IMPORT RULES' in a template, as stripped lines, or None."""
     lines = [line.strip() for line in template_text.splitlines()]
@@ -410,7 +448,7 @@ def _check_import_comment(text, comment, feature_line, add):
     lines = [line.strip() for line in text.splitlines()[:feature_line - 1]]
     size = len(comment)
     if not any(lines[i:i + size] == comment for i in range(len(lines) - size + 1)):
-        add("P11", "WARN", feature_line,
+        add("P11", "FAIL", feature_line,
             "the template's IMPORT RULES comment (%d lines) is not copied verbatim before Feature:" % size)
 
 

@@ -298,9 +298,11 @@ class ConfigDiscoveryTest(unittest.TestCase):
         cfg.write_text(json.dumps({"importRules": C4K_RULES}), encoding="utf-8")
         self.assertEqual(vf.main(["--config", str(cfg), str(self.feature)]), 1)
 
-    def test_no_import_rules_key_means_generic_checks_only(self):
+    def test_no_import_rules_key_means_no_import_rule_checks(self):
         self.write_config({"projectContext": "PROJECT.md"})
-        self.assertEqual(vf.run_cli([str(self.feature)], io.StringIO()), 0)
+        out = io.StringIO()
+        vf.run_cli([str(self.feature)], out)
+        self.assertNotRegex(out.getvalue(), r"FAIL P[1-6] ")
 
     def test_malformed_config_is_reported_not_fatal(self):
         self.write_config("{not json")
@@ -404,11 +406,11 @@ class ImportCommentTest(unittest.TestCase):
         text = VALID.replace("Feature: Sample\n", "\n".join(IMPORT_COMMENT) + "\nFeature: Sample\n")
         self.assertEqual(codes_with_comment(text), [])
 
-    def test_p11_comment_missing_is_warn(self):
+    def test_p11_comment_missing_is_fail(self):
         found = [(f.code, f.severity) for f in vf.validate(VALID, None, None, IMPORT_COMMENT)]
-        self.assertEqual(found, [("P11", "WARN")])
+        self.assertEqual(found, [("P11", "FAIL")])
 
-    def test_p11_comment_reworded_is_warn(self):
+    def test_p11_comment_reworded_fails(self):
         text = VALID.replace("Feature: Sample\n", "# IMPORT RULES\n#   - my own words\nFeature: Sample\n")
         self.assertIn("P11", codes_with_comment(text))
 
@@ -444,6 +446,44 @@ class ConfigTemplateTest(unittest.TestCase):
         out = io.StringIO()
         vf.run_cli([str(self.feature)], out)
         self.assertIn("P11", out.getvalue())
+
+
+TRIAGE_RULES = dict(TAG_RULES, triage={"blocked": ["@blocked", "@not-implemented"],
+                                       "manual": ["@ui", "@a11y", "@manual"]})
+
+
+def with_triage_line(text, line):
+    return text.replace("Feature: Sample\n", line + "\nFeature: Sample\n")
+
+
+class TriageLineTest(unittest.TestCase):
+    # VALID has 2 scenarios, both automatable.
+    def triage(self, text):
+        return [(f.code, f.severity) for f in vf.validate(text, None, TRIAGE_RULES) if f.code == "P12"]
+
+    def test_matching_line_passes(self):
+        text = with_triage_line(VALID, "#   Triage: 2 automatable / 0 manual / 0 blocked (2 scenarios)")
+        self.assertEqual(self.triage(text), [])
+
+    def test_wrong_counts_fail(self):
+        text = with_triage_line(VALID, "#   Triage: 1 automatable / 1 manual / 0 blocked (2 scenarios)")
+        self.assertEqual(self.triage(text), [("P12", "FAIL")])
+
+    def test_sum_disagrees_with_total_fails(self):
+        text = with_triage_line(VALID, "#   Triage: 2 automatable / 0 manual / 0 blocked (3 scenarios)")
+        self.assertEqual(self.triage(text), [("P12", "FAIL")])
+
+    def test_first_match_wins_blocked_over_manual(self):
+        text = VALID.replace("@positive @logic @area @screen", "@positive @ui @blocked @area @screen", 1)
+        text = with_triage_line(text, "#   Triage: 1 automatable / 0 manual / 1 blocked (2 scenarios)")
+        self.assertEqual(self.triage(text), [])
+
+    def test_missing_line_is_warn_only(self):
+        self.assertEqual(self.triage(VALID), [("P12", "WARN")])
+
+    def test_no_triage_mapping_no_check(self):
+        text = with_triage_line(VALID, "#   Triage: 9 automatable / 9 manual / 9 blocked (27 scenarios)")
+        self.assertEqual([f.code for f in vf.validate(text, None, TAG_RULES) if f.code == "P12"], [])
 
 
 if __name__ == "__main__":

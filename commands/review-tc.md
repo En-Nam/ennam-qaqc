@@ -14,8 +14,9 @@ allowed-tools: Read, Edit, Glob, Grep, AskUserQuestion, Bash(python3:*), Bash(gi
 `/ennam-qaqc:write-tc`. Read `${CLAUDE_PLUGIN_ROOT}/skills/qc-tcs/SKILL.md`, the
 context file, the template and the target file. If `--source` is given — or the
 header's `Source:` names a file you can find — read it too. Read earlier
-versions of the target as well: every `--prior` file and
-`git log -p --follow -- <file>` (CONTEXT_RESOLUTION.md §7).
+versions of the target as well: every `--prior` file,
+`git log -p --follow -- <file>`, and the project's knowledge store
+(CONTEXT_RESOLUTION.md §7).
 
 ## Step 2 — Checks
 
@@ -33,7 +34,9 @@ versions of the target as well: every `--prior` file and
    - a blocker names its exact step, and moves only scenarios whose `When`/`Then`
      need that step;
    - a scenario a tester can run alone today is MANUAL, not BLOCKED; every
-     BLOCKED names what someone outside QA must change;
+     BLOCKED has a `# [BACKEND]` line naming **who** outside QA must make **what**
+     change — reaching the state through the app, by waiting or by repeating an
+     action is MANUAL;
    - no scenario mixes parts that triage differently.
 4. Template shape: every template header block present, in order; the
    `IMPORT RULES` comment verbatim; a one-line coverage summary that matches the
@@ -60,12 +63,16 @@ versions of the target as well: every `--prior` file and
      that hits a cap or triggers a lockout counted as automatable, or a scenario
      that merely uses one unit marked `[LIMIT]` while others that use one too are
      automatable (CONTEXT_RESOLUTION.md §8).
+   - **Disputed string quoted** (Critical) — a literal that an `OQ-xx` says is
+     unresolved appears in quotes in a step (or as a literal display value).
+   - **More than one case id** (Warning) — the `# Feature:` line carries one id
+     in the context file's format; older ids belong in `Source:`.
    - **Message template filled in by hand** (Critical) — a literal string built
      from a source template (`X attempts remaining`) where the source's own
      examples disagree (`1 attempt` vs `1 attempts`); it should be an open
      question asserting only the agreed part.
    - **Routing tags changed** (Critical) — area or screen tags that differ from
-     an earlier version of the file without a reason, or a "screen" tag that
+     the last **committed** version of the file without a reason, or a "screen" tag that
      names a topic (`@session-persistence`, `@accessibility`). Routing tags are
      the suite's lookup keys.
 6. With a source: every inventory item in the source — ACs, Rules, Alts, input

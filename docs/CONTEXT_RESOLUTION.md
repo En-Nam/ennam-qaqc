@@ -169,16 +169,30 @@ and copy bugs record what was **observed in the product**. Collect, in order:
    branch that is newer than the working copy is **reported**, not merged
    (e.g. "origin/nghia has a newer version — pull it, or pass it with
    --prior").
+5. **The project's knowledge store** — wherever the context file says findings
+   and backlog items are kept (C4K: `.serena/memories/`, PROJECT.md §10). Grep it
+   for the case id, the DR/spec id, the feature name and its screen names, and
+   read the matching entries (read only — never edit a store the context file
+   says must be edited through a tool). A SPEC-DIFF filed there reaches every
+   later run, whichever copy of the `.feature` is on disk.
 
 Findings only reach the plugin if they are in one of these. A teammate's
 uncommitted copy on another machine is invisible: commit and push it, pull it
-here, or pass it with `--prior`.
+here, pass it with `--prior` — or, best, file the finding in the knowledge store
+as the context file asks, so no copy is needed.
 
-**Routing tags carry over.** The prior file's area and screen tags are the
-suite's lookup keys (flows, `/qa-run`, filters). Keep them unless the context
-file says otherwise; a change is reported, never silent. A screen tag names a
-screen or view — never a topic or check type (`@session-persistence`,
-`@accessibility` are not screens).
+**Routing tags carry over — from the last committed version.** Area and screen
+tags are the suite's lookup keys (flows, `/qa-run`, filters), and the right
+ones depend on the project and the feature — never assume a convention. Take
+them from the **last committed version** of the file (`git show HEAD:<path>`,
+else the newest commit in its history): an uncommitted working copy may be an
+unreviewed draft, including this plugin's own previous output. No committed
+version → follow the context file's tagging rule (§6). A change is reported,
+never silent. A screen tag names a screen or view — never a topic or check type
+(`@session-persistence`, `@accessibility` are not screens).
+
+Findings (SPEC-DIFFs, observed copy) are still read from **every** version,
+drafts included — only the routing tags follow the committed one.
 
 **Owners** — other `.feature` files that cite the same DR/spec ids, the same
 screens or the same feature names (`grep -rl`). Behaviour is handed to an owner
@@ -199,6 +213,13 @@ it). Classify each scenario by **its own expected result**, not the whole flow:
 - **Name the blocked step exactly.** A build-level blocker ("no DEV OTP hint")
   stops one step ("entering a valid code"). It moves only scenarios whose
   `When`/`Then` needs that step — not every scenario after it.
+- **The BLOCKED test: name who and what.** A BLOCKED scenario's `# [BACKEND]`
+  line names the person or team outside QA and the change they must make
+  ("Backend team must seed a phone number in the DB"). If a tester can reach the
+  state alone — through the app (sign up once to create a returning user), by
+  waiting (an hourly cap resets), or by repeating an action (send five codes to
+  reach the sixth) — it is MANUAL (`[LIMIT]` when it hits a cap), never BLOCKED.
+  "QA cannot reset it to re-run" is a re-run cost, not a block.
 - **A blocker a tester can work around by hand makes a scenario MANUAL, not
   BLOCKED.**
 - **One scenario, one triage.** If parts of a `Then` would triage differently

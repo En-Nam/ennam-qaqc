@@ -590,3 +590,16 @@ Findings from comparing plugin output with a hand-written file. They sharpen
 - **The `IMPORT RULES` comment is copied, not paraphrased** — a reworded one now
   fails validation.
 
+### 0.5.0 additions
+
+- **File findings where every run can see them.** Read the project's knowledge
+  store (the context file says where) for SPEC-DIFFs and observations about the
+  feature, and list each finding that still needs filing there. A finding that
+  lives only in one copy of a `.feature` is lost when that copy is replaced.
+- **BLOCKED names who and what.** If a tester can reach the state alone —
+  through the app, by waiting, by repeating an action — it is MANUAL.
+- **Routing tags come from the last committed version**, never from an
+  unreviewed draft; the right tags depend on the project and feature.
+- **A disputed string is never quoted** anywhere in the steps.
+- **One case id** on the `# Feature:` line; older ids go in `Source:`.
+

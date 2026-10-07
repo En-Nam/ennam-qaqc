@@ -69,7 +69,10 @@ material in your prompt.
    drive and assert this scenario's own result on today's build. MANUAL = a
    tester can run it alone today. BLOCKED = someone outside QA must change
    something first. A blocker a tester can work around by hand makes a scenario
-   MANUAL, never BLOCKED.
+   MANUAL, never BLOCKED. Every BLOCKED scenario's `# [BACKEND]` line names
+   **who** outside QA must make **what** change; if the tester can reach the state
+   alone (through the app, by waiting, by repeating an action), it is MANUAL
+   (CONTEXT_RESOLUTION.md §8).
 6. **Analyse before writing** — SKILL.md §8 order. Never go from requirement
    straight to Given/When/Then.
 7. **No pauses.** Write, then report. Ambiguity becomes `[ASSUMPTION]` or an
@@ -112,7 +115,15 @@ material in your prompt.
      raise an `OQ-xx` naming both and assert only what both agree on. Never pick
      the document silently.
    - List every prior scenario by title — each one's fate goes in the report.
-   - Note the prior routing tags (area, screen). Reuse them.
+   - **Routing tags** (area, screen) come from the **last committed version**
+     (`git show HEAD:<path>`, else the newest commit in `git log`), not from an
+     uncommitted working copy — that may be an unreviewed draft, including this
+     plugin's own previous output. No committed version → the context file's §6
+     rule. Never assume a tag convention.
+   - **Knowledge store** — grep the store the context file names for findings
+     (C4K: `.serena/memories/`, PROJECT.md §10) for the case id, DR/spec id,
+     feature name and screen names; read the matches (read only). Treat a filed
+     SPEC-DIFF or observation exactly like one from a prior file.
 3. **Owners** — grep the test-cases root for other `.feature` files that cite the
    same DR/spec ids, screen names or feature names (CONTEXT_RESOLUTION.md §7).
    Hand a behaviour to an owner **only with evidence**: a named scenario in that
@@ -183,7 +194,9 @@ Template block order. Be concise: state facts, never restate SKILL.md or
 PROJECT.md rules; each block ≤ ~12 lines except OPEN QUESTIONS, PRECONDITIONS
 and TEST DATA. Fill:
 
-- `# Feature: <name>  (<case id>)`
+- `# Feature: <name>  (<case id>)` — **one** id, in the format the context file
+  defines (PROJECT.md §3). An older id from a prior file goes on the `Source:`
+  line ("formerly US-001"), never beside the current one.
 - `# Source:` — spec/DR: `"<title>" v<n> (<author>, <DD Mon YYYY>)`; brief:
   `"User brief" (<requester if known>, <DD Mon YYYY>)`; prior file observations:
   `prior file <path> (observations carried forward)`; one line each.
@@ -272,7 +285,13 @@ header's coverage summary line must match these counts.
    - no scenario mixes parts that triage differently;
    - no document-only typo asserted as a literal string, and no message template
      filled in by hand where the source's examples disagree;
-   - routing tags match the prior file's (or the change is reported);
+   - routing tags match the last committed version's (or the change is
+     reported);
+   - **no disputed string is quoted**: for every `OQ-xx`, grep the steps for each
+     candidate literal it names (e.g. both placeholder candidates) — none may
+     appear in quotes, nor as a literal display value;
+   - every `@blocked` has a `# [BACKEND]` line naming who and what; anything a
+     tester can reach alone is re-tagged MANUAL;
 5. Triage counts with grep — BLOCKED = blocked/not-implemented tags; MANUAL =
    visual/a11y/manual tags; AUTOMATABLE = the rest. The triage block and its
    reconciliation line must agree, and every `@blocked` must name what someone
@@ -318,8 +337,9 @@ Owned elsewhere (boundary only): <behaviour → file>, … | none
 Carried forward from prior file: <SPEC-DIFFs / copy bugs> | none
 Prior-vs-document conflicts raised as OQs: <OQ-xx …> | none
 Settled edge cases applied: <each one → how> | none in the context file
-Routing tags: <unchanged from prior file: @area @screen | changed: old → new, because …>
-Prior sources read: <working copy @ commit; git history (n commits); --prior files> — copies outside these are not included
+Routing tags: <from last committed version <commit>: @area @screen… | from the context file rule (no committed version) | changed: old → new, because …>
+Prior sources read: <working copy @ commit; git history (n commits); --prior files; knowledge store entries> — copies outside these are not included
+Findings to file: <each new or carried-forward SPEC-DIFF → the knowledge-store entry to create, so the next run finds it> | none
 
 ### Prior scenarios (when a prior file was read)
 | Prior scenario | Fate | Where / why |

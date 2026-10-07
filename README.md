@@ -55,9 +55,13 @@ rules". Upgrading from an older version? Run that once — older pointers lack
 (before 0.4.0), and those rules are not machine-checked until you do.
 
 **Earlier versions of a feature file** are read before anything is written — the
-working copy (uncommitted edits included), its git history, and any file you
-pass with `--prior <file>`. Findings recorded only in a teammate's local copy
-are invisible until they are pushed and pulled here, or passed with `--prior`.
+working copy (uncommitted edits included), its git history, any file you pass
+with `--prior <file>`, and the project's knowledge store (e.g. the Serena
+backlog). Findings recorded only in a teammate's local copy are invisible until
+they are pushed and pulled here or passed with `--prior` — so **file every
+SPEC-DIFF in the knowledge store** (the report lists the ones to file), and every
+later run will find it. Area and screen tags are taken from the last
+**committed** version, never from an unreviewed draft.
 
 **Triage** follows one definition: AUTOMATABLE = the framework can drive and
 assert the scenario's own result on today's build; MANUAL = a tester can run it

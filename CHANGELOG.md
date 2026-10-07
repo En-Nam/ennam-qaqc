@@ -2,6 +2,32 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.5.0] - 2026-10-07
+
+Driven by the fourth review. The 0.4.0 output was the first to pass every C4K
+check (0 FAIL / 0 WARN with import rules, tag rules, the triage line and the
+IMPORT RULES comment). **No change to the importable output or the validator.**
+
+### Changed
+
+- **Knowledge store is a prior source.** The agent greps the store the context
+  file names (C4K: `.serena/memories/`) for findings about the case id, DR,
+  feature and screens, and the report lists each SPEC-DIFF still to be filed
+  there. The resend finding was lost again because it lived only in a
+  teammate's copy that no run was given.
+- **BLOCKED names who and what.** Every `@blocked` needs a `# [BACKEND]` line
+  naming the person or team outside QA and the change; anything a tester can
+  reach alone (through the app, by waiting, by repeating) is MANUAL. The 0.4.0
+  output marked three such scenarios BLOCKED.
+- **Routing tags come from the last committed version**, not the working copy —
+  which may be the plugin's own unreviewed draft. Tag conventions vary by
+  project and feature; none is assumed. Findings are still read from every
+  version.
+- **Disputed strings are never quoted** — the final check greps the steps for
+  every candidate literal an open question names.
+- **One case id** on the `# Feature:` line; older ids move to `Source:`.
+- `review-tc` checks all of the above and reads the knowledge store.
+
 ## [0.4.0] - 2026-10-07
 
 Driven by the third review. 0.3.0's fixes held; this release closes the gaps the

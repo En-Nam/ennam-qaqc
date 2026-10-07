@@ -337,5 +337,114 @@ class HeuristicsTest(unittest.TestCase):
         self.assertIn("G16", codes(text))
 
 
+TAG_RULES = {
+    "direction": ["@positive", "@negative"],
+    "checkType": ["@logic", "@navigation", "@ui", "@a11y"],
+    "gates": ["@not-implemented", "@blocked", "@manual", "@pending-oq"],
+    "platform": ["@ios-only", "@android-only"],
+    "area": ["@area"],
+    "titlePrefix": {"@positive": "Positive - ", "@negative": "Negative - "},
+}
+
+
+def tag_fails(text, tag_rules=TAG_RULES):
+    return [f.code for f in vf.validate(text, None, tag_rules) if f.severity == "FAIL"]
+
+
+class TagRulesTest(unittest.TestCase):
+    def test_valid_file_passes(self):
+        self.assertEqual(tag_fails(VALID), [])
+
+    def test_p7_two_check_types(self):
+        text = VALID.replace("@positive @logic @area @screen", "@positive @logic @navigation @area @screen", 1)
+        self.assertIn("P7", tag_fails(text))
+
+    def test_p7_missing_direction(self):
+        text = VALID.replace("@positive @logic @area @screen", "@logic @area @screen", 1)
+        self.assertIn("P7", tag_fails(text))
+
+    def test_p8_check_type_before_direction(self):
+        text = VALID.replace("@positive @logic @area @screen", "@logic @positive @area @screen", 1)
+        self.assertEqual(tag_fails(text), ["P8"])
+
+    def test_p8_gate_after_area(self):
+        text = VALID.replace("@positive @logic @area @screen", "@positive @logic @area @manual @screen", 1)
+        self.assertIn("P8", tag_fails(text))
+
+    def test_gates_and_platform_in_order_pass(self):
+        text = VALID.replace("@positive @logic @area @screen", "@positive @logic @blocked @manual @ios-only @area @screen", 1)
+        self.assertEqual(tag_fails(text), [])
+
+    def test_p9_unknown_extra_tag(self):
+        text = VALID.replace("@positive @logic @area @screen", "@positive @logic @area @screen @accessibility", 1)
+        self.assertIn("P9", tag_fails(text))
+
+    def test_p9_missing_area(self):
+        text = VALID.replace("@positive @logic @area @screen", "@positive @logic @screen", 1)
+        self.assertIn("P9", tag_fails(text))
+
+    def test_p10_prefix_disagrees_with_direction(self):
+        text = VALID.replace("Scenario: Positive - Save the form", "Scenario: Negative - Save the form")
+        self.assertEqual(tag_fails(text), ["P10"])
+
+    def test_no_tag_rules_no_checks(self):
+        text = VALID.replace("@positive @logic @area @screen", "@logic @positive @area @screen", 1)
+        self.assertEqual(tag_fails(text, None), [])
+
+    def test_examples_tags_are_not_scenario_tags(self):
+        text = VALID.replace("    Examples:\n", "    @rows\n    Examples:\n")
+        self.assertEqual(tag_fails(text), [])
+
+
+IMPORT_COMMENT = ["# IMPORT RULES: keep this file importable.", "# Second line of the rules."]
+
+
+class ImportCommentTest(unittest.TestCase):
+    def test_p11_comment_present_passes(self):
+        text = VALID.replace("Feature: Sample\n", "\n".join(IMPORT_COMMENT) + "\nFeature: Sample\n")
+        self.assertEqual(codes_with_comment(text), [])
+
+    def test_p11_comment_missing_is_warn(self):
+        found = [(f.code, f.severity) for f in vf.validate(VALID, None, None, IMPORT_COMMENT)]
+        self.assertEqual(found, [("P11", "WARN")])
+
+    def test_p11_comment_reworded_is_warn(self):
+        text = VALID.replace("Feature: Sample\n", "# IMPORT RULES\n#   - my own words\nFeature: Sample\n")
+        self.assertIn("P11", codes_with_comment(text))
+
+
+def codes_with_comment(text):
+    return [f.code for f in vf.validate(text, None, None, IMPORT_COMMENT)]
+
+
+class ConfigTemplateTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        (self.root / ".claude").mkdir()
+        (self.root / "t").mkdir()
+        (self.root / "t" / "TEMPLATE.feature").write_text(
+            "# header\n" + "\n".join(IMPORT_COMMENT) + "\nFeature: <name>\n", encoding="utf-8")
+        (self.root / ".claude" / "qaqc.json").write_text(json.dumps({
+            "template": "t/TEMPLATE.feature", "tagRules": TAG_RULES}), encoding="utf-8")
+        self.feature = self.root / "t" / "x.feature"
+
+    def test_template_comment_and_tag_rules_load_from_config(self):
+        self.feature.write_text(VALID.replace("@positive @logic @area @screen", "@logic @positive @area @screen", 1),
+                                encoding="utf-8")
+        out = io.StringIO()
+        self.assertEqual(vf.run_cli([str(self.feature)], out), 1)
+        self.assertIn("P8", out.getvalue())
+        self.assertIn("P11", out.getvalue())
+
+    def test_plugin_default_template_when_template_is_null(self):
+        (self.root / ".claude" / "qaqc.json").write_text(json.dumps({"template": None}), encoding="utf-8")
+        self.feature.write_text(VALID, encoding="utf-8")
+        out = io.StringIO()
+        vf.run_cli([str(self.feature)], out)
+        self.assertIn("P11", out.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

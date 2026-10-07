@@ -6,9 +6,9 @@ Feature File Validator
 Purpose: Lint a Gherkin .feature test-case file against
          1. the rules every ennam-qaqc project shares: Gherkin validity plus the
             QC-TCs universal rules (SKILL.md §4.2) — codes G*;
-         2. the project's importer rules, when `.claude/qaqc.json` holds an
-            `importRules` object (written by /ennam-qaqc:init from the context
-            file's §13) — codes P*.
+         2. the project's rules from `.claude/qaqc.json` (written by
+            /ennam-qaqc:init from the context file): `importRules` (§13),
+            `tagRules` (§6), and the template's IMPORT RULES comment — codes P*.
 
 Usage:   python3 validate_feature.py [--config PATH] FILE [FILE ...]
          python3 validate_feature.py --hook     # PostToolUse payload on stdin
@@ -44,6 +44,15 @@ Import rules (only when importRules sets them):
   P4  FAIL a `Rule:` block                       (rule: false)
   P5  FAIL a scenario title over the limit       (maxTitleLength: N)
   P6  FAIL a tag over the limit, incl. the "@"   (maxTagLength: N)
+
+Tag rules (only when tagRules is set):
+  P7  FAIL not exactly one direction / one check-type tag, or two platform tags
+  P8  FAIL tags out of slot order: direction, check type, gates, platform, area, screen
+  P9  FAIL routing tags are not exactly one area tag (from `area`) then one screen tag
+  P10 FAIL title prefix disagrees with the direction tag (titlePrefix)
+
+Template (whenever a .claude/qaqc.json is found):
+  P11 WARN the template's IMPORT RULES comment is not copied verbatim before Feature:
 
 Python 3.7+, standard library only.
 """
@@ -95,6 +104,7 @@ class Scenario:
     inherited: Set[str] = field(default_factory=set)
     steps: List[Tuple[int, str, str]] = field(default_factory=list)
     examples: List[ExamplesBlock] = field(default_factory=list)
+    tags: List[Tuple[int, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -121,8 +131,9 @@ def _short(title):
     return title if len(title) <= 60 else title[:57] + "..."
 
 
-def validate(text, rules=None):
-    """Lint `text`. `rules` is the importRules dict from .claude/qaqc.json, or None."""
+def validate(text, rules=None, tag_rules=None, import_comment=None):
+    """Lint `text`. `rules` / `tag_rules` are importRules / tagRules from .claude/qaqc.json;
+    `import_comment` is the template's IMPORT RULES comment lines. Each may be None."""
     findings = []
 
     def add(code, severity, line, message):
@@ -137,6 +148,7 @@ def validate(text, rules=None):
     background_keywords = set()
     block_has_body = False  # a step or table row seen since the last keyword line
     pending_tag = None      # line of a tag line still waiting for its target
+    pending_tokens = []     # (line, tag) on the tag lines waiting for their target
     docstring = None        # opening fence while inside a doc string
 
     for no, raw in enumerate(text.splitlines(), 1):
@@ -157,7 +169,9 @@ def validate(text, rules=None):
             bad = [token for token in tokens if not TAG_RE.match(token)]
             if bad:
                 add("G4", "FAIL", no, "tag line holds non-tag text %r; a tag line may contain only @tags" % " ".join(bad))
-            facts.tags.extend((no, token) for token in tokens if TAG_RE.match(token))
+            good = [(no, token) for token in tokens if TAG_RE.match(token)]
+            facts.tags.extend(good)
+            pending_tokens.extend(good)
             pending_tag = no
             continue
 
@@ -169,6 +183,7 @@ def validate(text, rules=None):
                     "tags must precede Feature:, Rule:, Scenario:, Scenario Outline: or Examples:, not %s:" % kw)
             if kw == "Feature" and pending_tag is not None:
                 facts.feature_tag_line = pending_tag
+            scenario_tags, pending_tokens = pending_tokens, []
             pending_tag = None
             block_has_body = False
             feature_header = kw == "Feature"
@@ -182,7 +197,7 @@ def validate(text, rules=None):
                 facts.background_lines.append(no)
                 block, current = "background", None
             elif kw in ("Scenario", "Scenario Outline"):
-                current = Scenario(no, rest, kw == "Scenario Outline", set(background_keywords))
+                current = Scenario(no, rest, kw == "Scenario Outline", set(background_keywords), tags=scenario_tags)
                 scenarios.append(current)
                 block = "scenario"
                 if " #" in rest:
@@ -198,12 +213,12 @@ def validate(text, rules=None):
 
         if MISSING_COLON_RE.match(line):
             add("G3", "FAIL", no, "keyword without a colon: %r is not read as a keyword" % line[:60])
-            pending_tag = None
+            pending_tag, pending_tokens = None, []
             continue
 
         if pending_tag is not None:
             add("G5", "FAIL", pending_tag, "tag line is followed by %r instead of a Scenario:" % line[:60])
-            pending_tag = None
+            pending_tag, pending_tokens = None, []
 
         step = STEP_RE.match(line)
         if step:
@@ -248,6 +263,10 @@ def validate(text, rules=None):
 
     if rules:
         _check_import_rules(rules, facts, scenarios, add)
+    if tag_rules:
+        _check_tag_rules(tag_rules, scenarios, add)
+    if import_comment and feature_lines:
+        _check_import_comment(text, import_comment, feature_lines[0], add)
 
     findings.sort(key=lambda f: (f.line, f.code))
     return findings
@@ -338,6 +357,63 @@ def _check_import_rules(rules, facts, scenarios, add):
                     % (_short(tag), len(tag), max_tag))
 
 
+SLOT_ORDER = ("direction", "checkType", "gates", "platform", "routing")
+
+
+def _check_tag_rules(tag_rules, scenarios, add):
+    slots = {name: set(tag_rules[name]) for name in SLOT_ORDER[:-1] if isinstance(tag_rules.get(name), list)}
+    if not slots:
+        return
+    areas = set(tag_rules["area"]) if isinstance(tag_rules.get("area"), list) else None
+    prefixes = tag_rules.get("titlePrefix") if isinstance(tag_rules.get("titlePrefix"), dict) else {}
+    for sc in scenarios:
+        line = sc.tags[0][0] if sc.tags else sc.line
+        tags = [tag for _, tag in sc.tags]
+        kinds = [next((name for name in SLOT_ORDER[:-1] if tag in slots.get(name, ())), "routing") for tag in tags]
+        for slot, label in (("direction", "direction"), ("checkType", "check-type")):
+            if slot in slots and kinds.count(slot) != 1:
+                add("P7", "FAIL", line, "scenario %r has %d %s tags; exactly one is required"
+                    % (_short(sc.title), kinds.count(slot), label))
+        if "platform" in slots and kinds.count("platform") > 1:
+            add("P7", "FAIL", line, "scenario %r has %d platform tags; at most one" % (_short(sc.title), kinds.count("platform")))
+        ranks = [SLOT_ORDER.index(kind) for kind in kinds]
+        if ranks != sorted(ranks):
+            add("P8", "FAIL", line, "tags out of order (%s); order is direction, check type, gates, platform, area, screen"
+                % " ".join(tags))
+        if areas is not None:
+            routing = [tag for tag, kind in zip(tags, kinds) if kind == "routing"]
+            found = [tag for tag in routing if tag in areas]
+            if len(routing) != 2 or len(found) != 1 or routing[0] not in areas:
+                add("P9", "FAIL", line, "routing tags %s: expected one area tag (%s) then one screen tag"
+                    % (" ".join(routing) or "(none)", " ".join(sorted(areas))))
+        direction = next((tag for tag, kind in zip(tags, kinds) if kind == "direction"), None)
+        prefix = prefixes.get(direction) if direction else None
+        if isinstance(prefix, str) and not sc.title.startswith(prefix):
+            add("P10", "FAIL", sc.line, "%s scenario title must start with %r" % (direction, prefix))
+
+
+def template_import_comment(template_text):
+    """The comment block that starts '# IMPORT RULES' in a template, as stripped lines, or None."""
+    lines = [line.strip() for line in template_text.splitlines()]
+    for index, line in enumerate(lines):
+        if line.startswith("# IMPORT RULES"):
+            block = []
+            for follow in lines[index:]:
+                if not follow.startswith("#"):
+                    break
+                block.append(follow)
+            return block
+    return None
+
+
+def _check_import_comment(text, comment, feature_line, add):
+    lines = [line.strip() for line in text.splitlines()[:feature_line - 1]]
+    size = len(comment)
+    if not any(lines[i:i + size] == comment for i in range(len(lines) - size + 1)):
+        add("P11", "WARN", feature_line,
+            "the template's IMPORT RULES comment (%d lines) is not copied verbatim before Feature:" % size)
+
+
 def find_config(path):
     """Nearest .claude/qaqc.json at or above `path`, or None."""
     start = Path(path).resolve()
@@ -348,42 +424,70 @@ def find_config(path):
     return None
 
 
-def load_import_rules(config_path):
-    """(rules or None, note or None). A config without importRules is not an error."""
+PLUGIN_TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "TEMPLATE.feature"
+
+
+@dataclass
+class ProjectRules:
+    import_rules: Optional[dict] = None
+    tag_rules: Optional[dict] = None
+    import_comment: Optional[List[str]] = None
+    source: Optional[Path] = None
+    notes: List[str] = field(default_factory=list)
+
+
+def load_project_rules(config_path):
+    """Rules from one qaqc.json. A missing key is not an error; unreadable input is a note."""
+    project = ProjectRules()
     if config_path is None:
-        return None, None
+        return project
     try:
         data = json.loads(Path(config_path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        return None, "could not read %s (%s); import rules not checked" % (config_path, exc.__class__.__name__)
-    rules = data.get("importRules") if isinstance(data, dict) else None
-    if rules is None:
-        return None, None
-    if not isinstance(rules, dict):
-        return None, "%s: importRules is not an object; import rules not checked" % config_path
-    return rules, None
+        project.notes.append("could not read %s (%s); project rules not checked" % (config_path, exc.__class__.__name__))
+        return project
+    if not isinstance(data, dict):
+        project.notes.append("%s is not a JSON object; project rules not checked" % config_path)
+        return project
+    project.source = Path(config_path)
+    for key, attr in (("importRules", "import_rules"), ("tagRules", "tag_rules")):
+        value = data.get(key)
+        if isinstance(value, dict):
+            setattr(project, attr, value)
+        elif value is not None:
+            project.notes.append("%s: %s is not an object; not checked" % (config_path, key))
+    template = data.get("template")
+    repo_root = Path(config_path).resolve().parent.parent
+    template_path = repo_root / template if isinstance(template, str) and template else PLUGIN_TEMPLATE
+    try:
+        project.import_comment = template_import_comment(template_path.read_text(encoding="utf-8"))
+    except OSError:
+        project.notes.append("template %s not readable; IMPORT RULES comment not checked" % template_path)
+    return project
 
 
 def rules_for(path, config=None):
-    """Import rules for one file: an explicit config, else the nearest .claude/qaqc.json."""
-    config_path = config if config is not None else find_config(Path(path).parent)
-    rules, note = load_import_rules(config_path)
-    return rules, (config_path if rules else None), note
+    """Project rules for one file: an explicit config, else the nearest .claude/qaqc.json."""
+    return load_project_rules(config if config is not None else find_config(Path(path).parent))
 
 
-def validate_file(path, rules=None):
-    return validate(Path(path).read_text(encoding="utf-8"), rules)
+def validate_file(path, project=None):
+    project = project or ProjectRules()
+    return validate(Path(path).read_text(encoding="utf-8"),
+                    project.import_rules, project.tag_rules, project.import_comment)
 
 
 def run_cli(paths, out, config=None):
     failed = False
     for path in paths:
-        rules, rules_source, note = rules_for(path, config)
-        if note:
+        project = rules_for(path, config)
+        for note in project.notes:
             out.write("note: %s\n" % note)
-        if rules_source:
-            out.write("import rules: %s\n" % rules_source)
-        findings = validate_file(path, rules)
+        if project.source:
+            checked = [name for name, value in (("importRules", project.import_rules), ("tagRules", project.tag_rules),
+                                                ("IMPORT RULES comment", project.import_comment)) if value]
+            out.write("import rules: %s (%s)\n" % (project.source, ", ".join(checked) or "no project rules set"))
+        findings = validate_file(path, project)
         for finding in findings:
             out.write(finding.format(path) + "\n")
         fails = sum(1 for f in findings if f.severity == "FAIL")
@@ -403,8 +507,7 @@ def run_hook(stdin, err):
     path = (payload.get("tool_input") or {}).get("file_path") or ""
     if not path.endswith(".feature") or Path(path).name == "TEMPLATE.feature" or not Path(path).is_file():
         return 0
-    rules, _, _ = rules_for(path)
-    fails = [f for f in validate_file(path, rules) if f.severity == "FAIL"]
+    fails = [f for f in validate_file(path, rules_for(path)) if f.severity == "FAIL"]
     if not fails:
         return 0
     err.write("validate_feature.py: %s has %d FAIL finding(s); fix them before continuing.\n" % (path, len(fails)))

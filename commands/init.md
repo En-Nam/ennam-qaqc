@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Glob, Grep, AskUserQuestion, Bash(ls:*), Bash(python
 
 Sets up `.claude/qaqc.json` so later commands find the project's context file,
 template and test-cases root without asking, and so the validator can enforce
-the project's import rules after every write. Read
+the project's import rules and tag rules after every write. Read
 `${CLAUDE_PLUGIN_ROOT}/docs/CONTEXT_RESOLUTION.md` first — it defines the pointer
 file, the lookup order and the defaults.
 
@@ -21,19 +21,21 @@ file, the lookup order and the defaults.
 2. **Never write a drafted context file without explicit approval.**
 3. **Never invent a rule.** Every drafted rule has a source: a repo file + line, a
    user answer, or "plugin default".
-4. **`.claude/qaqc.json` holds three paths and `importRules` — nothing else.**
-   `importRules` is a copy; the context file stays the source of truth.
-5. **Never guess an import rule.** A rule the sources do not state is left out
-   of `importRules` (left out = not checked), never filled with a default.
+4. **`.claude/qaqc.json` holds three paths, `importRules` and `tagRules` —
+   nothing else.** Both rule objects are copies; the context file stays the
+   source of truth.
+5. **Never guess a rule.** A rule the sources do not state is left out (left
+   out = not checked), never filled with a default.
 
 ## Step 1 — Existing pointer
 
-If `.claude/qaqc.json` exists, show it and ask: keep / refresh import rules /
+If `.claude/qaqc.json` exists, show it and ask: keep / refresh rules /
 point elsewhere / re-scan.
 - Keep → report (Step 8) and stop.
-- Refresh import rules → read the context file it points at, go to Step 6.
-- A pointer **without `importRules`** (written by an older version): say that
-  import rules are not machine-checked yet and recommend "refresh import rules".
+- Refresh rules → read the context file it points at, go to Step 6.
+- A pointer **without `importRules` or `tagRules`** (written by an older
+  version): say which rules are not machine-checked yet and recommend
+  "refresh rules".
 
 ## Step 2 — Ask for an existing file
 
@@ -88,7 +90,7 @@ Show the full draft, then ask:
 
 Write only on approval. Cancel → write nothing (not `qaqc.json` either) and stop.
 
-## Step 6 — Derive the import rules
+## Step 6 — Derive the import rules and tag rules
 
 Read the import rules from, first hit wins: the context file's §13 (or any
 section naming the importer's constraints — e.g. an "Import compatibility"
@@ -107,8 +109,16 @@ section in a CLAUDE.md the context file points to) → the resolved template's
 
 The opposite statement ("tags on `Feature:` are allowed") maps to `true`.
 Unstated → leave the key out. "Files are not imported" → `"importRules": {}`.
+**Tag rules** come from the context file's §6 tag vocabulary (else the
+template's Tag legend): the tags per slot → `direction`, `checkType`, `gates`,
+`platform`; the area tag per folder → `area`; the scenario naming convention →
+`titlePrefix` (e.g. `{"@positive": "Positive - ", "@negative": "Negative - "}`).
+Leave out a slot the sources do not list. Never add a tag that appears only in
+an existing `.feature` file — files show usage, not the vocabulary.
+
 Show the result with the source line of each rule, e.g.
-`featureTags: false  ← CLAUDE.md "Import compatibility" rule 3`. A rule the user
+`featureTags: false  ← CLAUDE.md "Import compatibility" rule 3`,
+`checkType: @logic @navigation @ui @a11y  ← PROJECT.md §6.1`. A rule the user
 corrects is corrected in the **context file** first, then here.
 
 ## Step 7 — Write the pointer
@@ -121,14 +131,16 @@ Resolve the template (CONTEXT_RESOLUTION.md §3) and the root (§4), then write
   "projectContext": "<context file path>",
   "template": "<template path, or null for the plugin default>",
   "testCasesRoot": "<root>",
-  "importRules": { "<key>": "<value from Step 6>" }
+  "importRules": { "<key>": "<value from Step 6>" },
+  "tagRules": { "<slot>": ["<tags from Step 6>"] }
 }
 ```
 
 Then prove the rules load:
 `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py <any existing .feature under the root>`
-— the output must start with `import rules: .claude/qaqc.json`. Existing files
-that now FAIL are reported (not fixed) in Step 8.
+— the output must start with `import rules: .claude/qaqc.json (importRules,
+tagRules, IMPORT RULES comment)`. Existing files that now FAIL are reported (not
+fixed) in Step 8.
 
 ## Step 8 — Report
 
@@ -138,6 +150,7 @@ ennam-qaqc initialised
   Template     : <path> (<why>)
   Test cases   : <root>
   Import rules : <n> machine-checked (<keys>) — from <source> | none stated
+  Tag rules    : <slots> — from <source> | none stated
   Existing files failing them: <n> (<file: codes>, …) | none
   Pointer      : .claude/qaqc.json
 Next: /ennam-qaqc:write-tc <what to write test cases for>

@@ -25,9 +25,9 @@ material in your prompt.
 | `Template` | the skeleton to follow, and why it was chosen |
 | `Test-cases root` | folder holding the suite |
 | `Closest sibling` | an existing `.feature` to match for house style, or `none` |
-| `Prior file` | an existing `.feature` for the same case id or target path, or `none` (CONTEXT_RESOLUTION.md §7) |
+| `Prior file` | every earlier version to learn from: the working copy (uncommitted edits noted), `--prior` files, or `none` (CONTEXT_RESOLUTION.md §7) |
 | `Design` | design links, `<TODO> (user skipped)`, or `none mentioned` |
-| `Import rules` | `machine-checked by the validator (<keys>)` or `not machine-checked — check them yourself` |
+| `Project rules` | which of importRules / tagRules / the IMPORT RULES comment the validator checks; the rest you check yourself |
 | `Validator` | the command that lints the file |
 | `Today` | date for `Source:` lines (`DD Mon YYYY`) |
 
@@ -59,41 +59,57 @@ material in your prompt.
    - An unresolved question is an `OQ-xx` in the header, never a scenario. No
      "determine whether…", "record the outcome", or `Then` without an expected
      result.
-5. **Analyse before writing** — SKILL.md §8 order. Never go from requirement
+5. **Triage by CONTEXT_RESOLUTION.md §8.** AUTOMATABLE = the framework can
+   drive and assert this scenario's own result on today's build. MANUAL = a
+   tester can run it alone today. BLOCKED = someone outside QA must change
+   something first. A blocker a tester can work around by hand makes a scenario
+   MANUAL, never BLOCKED.
+6. **Analyse before writing** — SKILL.md §8 order. Never go from requirement
    straight to Given/When/Then.
-6. **No pauses.** Write, then report. Ambiguity becomes `[ASSUMPTION]` or an
+7. **No pauses.** Write, then report. Ambiguity becomes `[ASSUMPTION]` or an
    `OQ-xx` with the project's open-question tag, reported at the end. Return
    `NEEDS_INPUT` **only** when the target file or mode is missing, or the material
    cannot be read.
-7. **Precedence:** context file > resolved template > SKILL.md > plugin defaults
+8. **Precedence:** context file > resolved template > SKILL.md > plugin defaults
    (CONTEXT_RESOLUTION.md §5). The import rules (context §13 / `importRules`)
    beat everything. A sibling or prior file shows **style**, never **rules**:
    never copy tags on `Feature:`, legacy `Scenario -` titles, a description under
    `Feature:` or any tag outside the vocabulary from them.
-8. **Template shape.** Keep every template header block, in the template's order,
+9. **Template shape.** Keep every template header block, in the template's order,
    plus the template's `IMPORT RULES` comment **verbatim**, the `Feature:` line
    and the COVERAGE block. Add SKILL.md §4.1 blocks where the material supports
    them. Never drop a template block — write "None" when it is empty.
-9. **Every write leaves a valid file.** The first Write already holds the header,
+10. **Every write leaves a valid file.** The first Write already holds the header,
    the `Feature:` line and the story comments. Then append the body one section
    per Edit, then the COVERAGE block. The validator hook runs after every write;
    fix what it reports before the next write.
-10. **Done means:** `validate_feature.py` reports 0 FAIL and no unexplained WARN,
+11. **Done means:** `validate_feature.py` reports 0 FAIL and no unexplained WARN,
     the Phase 6 checks pass, and the gap review is honest.
 
 ## Phase 0 — Read (in parallel)
 
 1. Every file under "Files to read first", and all material. No context file →
    the CONTEXT_RESOLUTION.md §5 defaults apply; note each one you use.
-2. **Prior file** (if any) — in every mode. Collect its SPEC-DIFFS, LIVE
-   VERIFICATION notes, observed copy bugs and any `(Prior live observation)`
-   lines. Under **app-truth** these outrank the document: assert what was
-   observed and keep the SPEC-DIFF (spec-says / app-does / evidence). Under
-   spec-truth they become notes on the affected scenarios.
+2. **Prior file** sources — in every mode, before anything is written:
+   - Read each one listed (the working copy as on disk, and every `--prior`
+     file), then `git log -p --follow -- <path>` for SPEC-DIFF, LIVE
+     VERIFICATION and observation lines that later commits dropped.
+   - Collect every SPEC-DIFF, observed copy bug and `(Prior live observation)`.
+     Under **app-truth** these outrank the document: assert what was observed
+     and keep the SPEC-DIFF (spec-says / app-does / evidence). Under spec-truth
+     they become notes on the affected scenarios.
+   - Where a prior file asserted something **different from the document** and
+     no evidence settles which is right (e.g. a placeholder sample vs a mask),
+     raise an `OQ-xx` naming both and assert only what both agree on. Never pick
+     the document silently.
+   - List every prior scenario by title — each one's fate goes in the report.
 3. **Owners** — grep the test-cases root for other `.feature` files that cite the
    same DR/spec ids, screen names or feature names (CONTEXT_RESOLUTION.md §7).
-   Read the matching sections. Behaviour they own is asserted here only at the
-   boundary ("the screen opens"), naming the owning file in WHAT THIS FILE COVERS.
+   Hand a behaviour to an owner **only with evidence**: a named scenario in that
+   file that asserts it. Then assert it here only at the boundary and cite the
+   owning file and scenario title in WHAT THIS FILE COVERS. A screen inside this
+   spec's own scope (e.g. the entry screen a DR describes) stays here unless
+   such a scenario exists.
 4. From the context file, note: the tag vocabulary, its **settled edge cases**
    (§6), **build-level automation blockers** and **run limits** (§9).
 
@@ -105,6 +121,11 @@ Build a working list in TodoWrite (not in the file):
 - **requirements** — keep the material's own ids (`AC-xx`, `Rule x`, `Alt x`).
   Number un-numbered prose rules `BR-001`, `BR-002`… in order of appearance, each
   with its source (file + section, or "user brief").
+- **the full inventory** — every enumerable item in the source, not only ACs and
+  Rules: each input field and its validation, each interaction element and its
+  enabled/visible condition (e.g. "Verify code — enabled when 6 digits
+  entered"), each display state, each UX optimisation and accessibility item,
+  each rate limit. Every one ends up in the COVERAGE block.
 - for each requirement: **observable in the product?** yes / only its consequence
   / no (→ `NOT UI-OBSERVABLE` in COVERAGE)
 - state transitions (allowed and prohibited) · system responses
@@ -131,8 +152,14 @@ boundary and negative depth. Plan numbered sections:
   email, push, payment) or locks shared state (lockouts, cooldowns, quotas) is not
   automatable now unless the context file says dev resets it: give it the
   project's manual gate and a `# [LIMIT] <resource and limit>` comment line.
-- **Blockers.** Apply the context file's build-level automation blockers to
-  exactly the scenarios that pass through the blocked step — no more, no fewer.
+- **Blockers.** Name the blocked step exactly ("entering a valid code", not
+  "tapping Continue"). It moves only scenarios whose `When`/`Then` needs that
+  step — reaching the screen, entering a wrong code or going offline before the
+  step does not. If a tester can do the step by hand, the moved scenarios are
+  MANUAL (Rule 5).
+- **One scenario, one triage.** Split a scenario whose `Then` mixes parts that
+  triage differently (a screen change the framework can assert plus an SMS
+  arriving on a handset).
 - **Settled edge cases** from the context file decide gates before your own
   judgment (e.g. "airplane mode is not a gate").
 
@@ -150,8 +177,9 @@ and TEST DATA. Fill:
 - `COPY SOURCE` note when authoring is documents-only (the default): every quoted
   string is sourced from <sources + versions> or observed per the prior file; not
   verified against the product by this pass; build status not checked.
-- `WHAT THIS FILE COVERS` — in scope; out of scope **with the owning file or
-  spec**; and as its first line a one-line coverage summary:
+- `WHAT THIS FILE COVERS` — in scope; out of scope **with the owning file and
+  the scenario that covers it** (or the owning spec); and as its first line a
+  one-line coverage summary:
   `# Coverage: 15/15 AC · 12/12 Rules (2 not UI-observable) · 7/7 Alt — matrix at end of file`.
 - Tag legend — only tags this file uses, each with its project meaning.
 - `SPEC-DIFFS` — carried forward from the prior file (numbered, spec-says /
@@ -197,30 +225,38 @@ characters, `;`-separated) and gates — not only to section numbers:
 # Rule 3 secure random OTP ........... NOT UI-OBSERVABLE - generator quality is server-side
 ```
 
-Then `NOT APPLICABLE` (dimension — why), `OUT OF SCOPE` (owner file/spec),
-`NOT COVERED (open questions)`. No requirement may be missing. The header's
-coverage summary line must match these counts.
+Group the lines by source section: ACCEPTANCE CRITERIA, SYSTEM RULES,
+ALTERNATIVE FLOWS, FIELDS & INTERACTION ELEMENTS, DISPLAY STATES, UX &
+ACCESSIBILITY, RATE LIMITS — whatever the source enumerates. Then
+`NOT APPLICABLE` (dimension — why), `OUT OF SCOPE` (owner file + scenario, or
+spec), `NOT COVERED (open questions)`. No inventory item may be missing. The
+header's coverage summary line must match these counts.
 
 ## Phase 6 — Validate
 
 1. Run `<Validator> "<target file>"`. Fix every FAIL and re-run until 0 FAIL.
    Every WARN is fixed or explained in the report — a G16 means a scenario breaks
-   Rule 4 and must go.
-2. If `Import rules` says *not machine-checked*, check the import rules yourself
-   (context §13, else the template's `IMPORT RULES` block): tags on `Feature:`,
-   description, `Background:`, title and tag length.
-3. Project rules: every tag in the vocabulary; tag order; exactly one direction
-   and one check type per scenario; prefix ↔ direction; area + screen on every
-   scenario; each **settled edge case** applied.
+   Rule 4 and must go; a P11 means the `IMPORT RULES` comment was not copied
+   verbatim.
+2. Whatever `Project rules` says is *not machine-checked*, check yourself:
+   import rules (context §13, else the template's `IMPORT RULES` block); tag
+   vocabulary, slot order, one direction + one check type, area + screen tags,
+   title prefix ↔ direction (context §6); the `IMPORT RULES` comment verbatim.
+3. Go through the context file's **settled edge cases** one by one and confirm
+   each is applied; list them in the report.
 4. Judgment checks:
    - no two scenarios in one partition (incl. Outline rows vs standalones);
    - nothing owned by another file asserted beyond the boundary;
    - every prior-file SPEC-DIFF and observed copy bug carried forward or
-     explicitly retired with a reason;
+     explicitly retired with a reason; every prior scenario has a fate;
+   - every inventory item (fields, interaction elements, display states, UX
+     items) is in COVERAGE;
+   - no scenario mixes parts that triage differently;
    - no document-only typo asserted as a literal string.
 5. Triage counts with grep — BLOCKED = blocked/not-implemented tags; MANUAL =
    visual/a11y/manual tags; AUTOMATABLE = the rest. The triage block and its
-   reconciliation line must agree.
+   reconciliation line must agree, and every `@blocked` must name what someone
+   outside QA has to change (a `# [BACKEND]` line).
 6. SKILL.md §10 gap review and §11 checklist. Fix what fails.
 
 ## Modes
@@ -234,7 +270,7 @@ coverage summary line must match these counts.
 - **preview** — write nothing. Report the scenarios that would be added /
   changed / removed (title, tags, requirement), then stop.
 
-## NEEDS_INPUT (Rule 6 cases only)
+## NEEDS_INPUT (Rule 7 cases only)
 
 ```
 NEEDS_INPUT
@@ -252,7 +288,7 @@ Case id   : <id>
 Sources   : <each source + version/date; prior file if read>
 Context   : <context file | none — defaults used: …>
 Scenarios : <total> — <n> automatable / <n> manual / <n> blocked
-Moved out of automatable: <n> by <blocker / [LIMIT] reason> | none
+Moved out of automatable: <n> by <blocked step / [LIMIT] reason> | none
 
 ### Method
 Views: …
@@ -260,6 +296,12 @@ Dimensions applied: … | Not applicable: <dimension — why>, …
 Not UI-observable (no scenario): <rule — why>, … | none
 Owned elsewhere (boundary only): <behaviour → file>, … | none
 Carried forward from prior file: <SPEC-DIFFs / copy bugs> | none
+Prior-vs-document conflicts raised as OQs: <OQ-xx …> | none
+Settled edge cases applied: <each one → how> | none in the context file
+
+### Prior scenarios (when a prior file was read)
+| Prior scenario | Fate | Where / why |
+| <title> | kept / merged / reworded / dropped | <new scenario title, or the reason it was dropped> |
 
 ### Gap review
 Critical rules covered: <x>/<y>
@@ -271,7 +313,7 @@ Critical rules covered: <x>/<y>
 - [ASSUMPTION] …
 
 ### Checks
-validate_feature.py: 0 FAIL, <n> WARN (<why kept>)  · import rules: <machine-checked | self-checked>
+validate_feature.py: 0 FAIL, <n> WARN (<why kept>)  · project rules: <machine-checked | self-checked: …>
 Project rules: <pass | fixed: …>
 Queued work: <recorded where the context file says | listed here: …>
 ```

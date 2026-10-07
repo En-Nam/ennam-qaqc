@@ -9,5 +9,13 @@
     "rule": false,
     "maxTitleLength": 200,
     "maxTagLength": 100
+  },
+  "tagRules": {
+    "direction": ["@positive", "@negative"],
+    "checkType": ["@logic", "@navigation", "@ui", "@a11y"],
+    "gates": ["@not-implemented", "@blocked", "@manual", "@pending-oq"],
+    "platform": ["@ios-only", "@android-only"],
+    "area": ["@authentication", "@account", "@bookings", "@collections", "@explore", "@provider-listing"],
+    "titlePrefix": { "@positive": "Positive - ", "@negative": "Negative - " }
   }
 }

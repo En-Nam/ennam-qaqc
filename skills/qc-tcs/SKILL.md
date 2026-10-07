@@ -555,3 +555,24 @@ Findings from comparing plugin output with a hand-written file. They sharpen
   `Feature:`, legacy titles) from an existing file.
 - **Findable coverage.** Map each requirement to scenario titles, and put a
   one-line coverage summary in the header.
+
+### 0.3.0 additions
+
+- **One triage definition** (CONTEXT_RESOLUTION.md §8). AUTOMATABLE = the
+  framework can drive and assert this scenario's own result on today's build.
+  MANUAL = a tester can run it alone today. BLOCKED = someone outside QA must
+  change something first. A blocker names its exact step and moves only the
+  scenarios that need that step; a blocker a tester can do by hand means MANUAL.
+- **Prior knowledge lives in more than one place.** Read the working copy
+  (uncommitted edits included), the file's git history, and any earlier version
+  a teammate hands over. A prior assertion that disagrees with the document,
+  with nothing to settle it, is an open question — not a silent pick.
+- **Account for every prior scenario**: kept, merged, reworded or dropped, with
+  the reason.
+- **Hand off only with evidence** — a named scenario in the owning file. A
+  screen inside this spec's scope stays here otherwise.
+- **The coverage inventory is everything the spec enumerates**: fields,
+  interaction elements and their enabled conditions, display states, UX and
+  accessibility items, rate limits — not only ACs and Rules.
+- **Tag rules are machine-checked** (`tagRules` in `.claude/qaqc.json`), like
+  import rules. A sibling's tag order is not evidence of the vocabulary.

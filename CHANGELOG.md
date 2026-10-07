@@ -2,6 +2,46 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.3.0] - 2026-10-07
+
+Driven by the second review (0.2.0 output vs Nghĩa's file). 0.2.0's fixes held,
+but findings from the app were lost, two scenarios vanished, tag order was
+wrong in three places, and 28 scenarios a tester can run were marked
+`@blocked`.
+
+### Added
+
+- **Validator enforces tag rules** (P7–P10) from a new `tagRules` object in
+  `.claude/qaqc.json`: exactly one direction and one check-type tag, slot order,
+  one area tag then one screen tag, title prefix matching the direction. The
+  agent's own tag check had missed problems twice.
+- **P11** (warning) — the template's `IMPORT RULES` comment must be copied
+  verbatim; the template comes from `qaqc.json` or the plugin default.
+- `init` derives `tagRules` from the context file's §6; "refresh rules" updates
+  older pointers.
+- `write-tc --prior <file>` (repeatable) — learn from an earlier version kept
+  anywhere, e.g. a teammate's copy.
+- **One triage definition** (CONTEXT_RESOLUTION.md §8): AUTOMATABLE / MANUAL /
+  BLOCKED by each scenario's own result; a blocker names its exact step; a
+  blocker a tester can work around makes a scenario MANUAL, not BLOCKED.
+
+### Changed
+
+- **Prior knowledge**: the working copy (uncommitted edits included) wins over
+  `HEAD`; git history is searched for dropped SPEC-DIFFs; newer versions on other
+  branches are reported. A prior assertion that disagrees with the document
+  becomes an open question instead of a silent pick. The report accounts for
+  every prior scenario (kept / merged / reworded / dropped + why).
+- **Ownership needs evidence** — a named scenario in the owning file; screens in
+  the spec's own scope stay otherwise.
+- **Coverage inventory** includes fields, interaction elements and their
+  enabled conditions, display states, UX and accessibility items.
+- Scenarios whose parts would triage differently are split.
+- The report lists the settled edge cases applied.
+- `review-tc` checks triage, hand-offs without evidence, lost prior knowledge
+  and the full inventory.
+- `qc-tcs` skill §14 extended with the 0.3.0 lessons.
+
 ## [0.2.0] - 2026-10-07
 
 Driven by a side-by-side review of plugin output against a hand-written file

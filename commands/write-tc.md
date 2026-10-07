@@ -1,7 +1,7 @@
 ---
 description: Write a Gherkin .feature test-case file from any material — a brief, a DR, a reference file — following the project's template and the QC-TCs method
-argument-hint: <what to cover — text, @file, DR id, URL> [--context path] [--out path]
-allowed-tools: Agent, SendMessage, Read, Glob, Grep, AskUserQuestion, WebFetch, Bash(python3:*)
+argument-hint: <what to cover — text, @file, DR id, URL> [--context path] [--out path] [--prior file ...]
+allowed-tools: Agent, SendMessage, Read, Glob, Grep, AskUserQuestion, WebFetch, Bash(python3:*), Bash(git log:*), Bash(git status:*)
 ---
 
 # Write test cases — orchestrator
@@ -28,11 +28,12 @@ counts as "given by the user". If §2 step 4 fires, ask and wait:
 option 1 → use the path; option 2 → tell the user to run `/ennam-qaqc:init`, then
 stop; option 3 → `Context file: none (plugin defaults)`.
 
-Import rules: if `.claude/qaqc.json` has an `importRules` object →
-`Import rules: machine-checked by the validator (<its keys>)`. Otherwise →
-`Import rules: not machine-checked — check them yourself`, and remember to add
-one line to the relay in Step 8: "Tip: run `/ennam-qaqc:init` → refresh import
-rules, so the validator enforces them." (No question — this is not a gate.)
+Project rules: from `.claude/qaqc.json` →
+`Project rules: machine-checked — importRules (<keys>), tagRules (<slots>), IMPORT RULES comment`.
+Name whichever of the three is missing as `not machine-checked — check it
+yourself`. If `importRules` or `tagRules` is missing, add one line to the relay
+in Step 8: "Tip: run `/ennam-qaqc:init` → refresh rules, so the validator
+enforces them." (No question — this is not a gate.)
 
 ## Step 2 — Collect the material (gate)
 
@@ -78,9 +79,19 @@ case id on its `# Feature:` line (`grep -rl "(<id>)" <root>`), ask:
 
 → Mode `update` / `create` (new path) / `preview`. No existing file → `create`.
 
-Whatever the choice, the existing file is the **Prior file**
-(CONTEXT_RESOLUTION.md §7) — its observations from the product are carried
-forward even into a new file. No existing file → `Prior file: none`.
+Whatever the choice, collect the **Prior file** sources (CONTEXT_RESOLUTION.md
+§7) — their observations from the product are carried forward even into a new
+file:
+
+1. every `--prior <file>` given (any path; repeatable);
+2. the existing file **as it is on disk** — `git status --short -- <path>`
+   shows whether it has uncommitted edits; the working copy wins over `HEAD`;
+3. `git log --all --oneline -- <path>`: if a branch has a commit for this file
+   that the working copy does not contain, tell the user before dispatching (one
+   line, not a gate): "`<branch>` has a newer version of this file — pull it, or
+   pass it with `--prior`, if its findings should count."
+
+No prior source at all → `Prior file: none`.
 
 ## Step 6 — Dispatch
 
@@ -101,9 +112,9 @@ Write test cases.
 - Template: <path> (<why — CONTEXT_RESOLUTION.md §3 step n>)
 - Test-cases root: <path>
 - Closest sibling: <path | none>
-- Prior file: <path | none>
+- Prior file: <path (working copy, uncommitted edits: yes/no); --prior paths; | none>
 - Design: <links | <TODO> (user skipped) | none mentioned>
-- Import rules: <machine-checked by the validator (<keys>) | not machine-checked — check them yourself>
+- Project rules: <machine-checked — importRules (<keys>), tagRules (<slots>), IMPORT RULES comment | which are not machine-checked — check them yourself>
 - Validator: python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py
 - Today: <YYYY-MM-DD>
 
@@ -117,7 +128,7 @@ then "Read from <path>" for files, or the full text for pasted/fetched content>
 3. <context file, if any>
 4. <template>
 5. <closest sibling, if any>
-6. <prior file, if any>
+6. <each prior file, if any>
 7. <each material file>
 ```
 
@@ -131,4 +142,4 @@ a Final Report arrives.
 ## Step 8 — Relay
 
 Copy the Final Report verbatim. Add one line before it only if something failed,
-and the import-rules tip from Step 1 after it when it applies.
+and the refresh-rules tip from Step 1 after it when it applies.

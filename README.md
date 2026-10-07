@@ -13,7 +13,7 @@ code, or launches/inspects an app, device or browser.
 | Command | What it does | Example |
 |---|---|---|
 | `/ennam-qaqc:init` | Point the plugin at your project context file, or scan the repo and draft one (shown for approval first) | `/ennam-qaqc:init .claude/skills/PROJECT.md` |
-| `/ennam-qaqc:write-tc` | Write (or update / preview) one `.feature` file from any material | `/ennam-qaqc:write-tc @docs/DR-003-005-01-search-form.md` |
+| `/ennam-qaqc:write-tc` | Write (or update / preview) one `.feature` file from any material; `--prior <file>` adds an earlier version to learn from | `/ennam-qaqc:write-tc @docs/DR-003-005-01-search-form.md` |
 | `/ennam-qaqc:review-tc` | Review an existing `.feature`: validator, import rules, coverage vs. source, checklist; offers fixes | `/ennam-qaqc:review-tc "test-cases/Explore & Discovery/search-form.feature"` |
 
 The `qc-tcs` skill also loads on its own when you ask for test cases in plain words.
@@ -29,8 +29,9 @@ The plugin finds it in this order: a path you give → `.claude/qaqc.json` → k
 spots → it asks you (point to a file / draft one / continue on defaults). Full
 procedure and defaults: `docs/CONTEXT_RESOLUTION.md`.
 
-`.claude/qaqc.json` is written by `init`: three paths, plus a machine-readable
-copy of the importer's rules (from the context file's §13) for the validator:
+`.claude/qaqc.json` is written by `init`: three paths, plus machine-readable
+copies of the importer's rules (context file §13) and the tag vocabulary (§6)
+for the validator:
 
 ```json
 {
@@ -38,13 +39,30 @@ copy of the importer's rules (from the context file's §13) for the validator:
   "template": "test-cases/TEMPLATE.feature",
   "testCasesRoot": "test-cases/",
   "importRules": { "featureTags": false, "featureDescription": false, "background": false,
-                   "rule": false, "maxTitleLength": 200, "maxTagLength": 100 }
+                   "rule": false, "maxTitleLength": 200, "maxTagLength": 100 },
+  "tagRules": { "direction": ["@positive", "@negative"],
+                "checkType": ["@logic", "@navigation", "@ui", "@a11y"],
+                "gates": ["@not-implemented", "@blocked", "@manual", "@pending-oq"],
+                "platform": ["@ios-only", "@android-only"],
+                "area": ["@authentication", "@account", "@explore"],
+                "titlePrefix": { "@positive": "Positive - ", "@negative": "Negative - " } }
 }
 ```
 
-Change import rules in the context file, then re-run `/ennam-qaqc:init` →
-"refresh import rules". Upgrading from 0.1.x? Run that once — older pointers
-have no `importRules`, so the rules are not machine-checked until you do.
+Change rules in the context file, then re-run `/ennam-qaqc:init` → "refresh
+rules". Upgrading from an older version? Run that once — older pointers lack
+`importRules` (before 0.2.0) or `tagRules` (before 0.3.0), and those rules are
+not machine-checked until you do.
+
+**Earlier versions of a feature file** are read before anything is written — the
+working copy (uncommitted edits included), its git history, and any file you
+pass with `--prior <file>`. Findings recorded only in a teammate's local copy
+are invisible until they are pushed and pulled here, or passed with `--prior`.
+
+**Triage** follows one definition: AUTOMATABLE = the framework can drive and
+assert the scenario's own result on today's build; MANUAL = a tester can run it
+alone today; BLOCKED = someone outside QA must change something first
+(`docs/CONTEXT_RESOLUTION.md` §8).
 
 **Template:** the one `qaqc.json` names → the one the context file names →
 `<root>/TEMPLATE.feature` → the plugin default (`templates/TEMPLATE.feature`).
@@ -67,6 +85,9 @@ Everything else is decided in writing: unclear behaviour becomes
   tags, every `Examples` column used, …
 - **Your project's import rules** (P1–P6) from `.claude/qaqc.json` → tags or a
   description under `Feature:`, `Background:`, `Rule:`, title and tag length.
+- **Your project's tag rules** (P7–P10) → one direction and one check-type tag,
+  slot order, one area then one screen tag, title prefix matching the direction.
+- **The template's `IMPORT RULES` comment** copied verbatim (P11, a warning).
 - **Two warnings** — duplicate scenario titles (G15), and steps a tester cannot
   observe in the product, such as server-side inspection or delivery logs (G16).
 
@@ -75,9 +96,9 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py path/to/file.feature
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py --config other/qaqc.json path/to/file.feature
 ```
 
-Rules a script cannot judge (tag vocabulary, observability, duplicate
-partitions, ownership, honest automation counts) are checked by the agent and
-by `/ennam-qaqc:review-tc`.
+Rules a script cannot judge (observability, duplicate partitions, ownership,
+triage, carried-forward findings) are checked by the agent and by
+`/ennam-qaqc:review-tc`.
 
 ## Installation
 

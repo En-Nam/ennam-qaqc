@@ -39,6 +39,24 @@ whether a priority scheme exists — if none, say "none, do not introduce one".
 Name the header triage block (`AUTOMATION CONVERTIBILITY`,
 `MAESTRO CONVERTIBILITY`, …).
 
+`/ennam-qaqc:init` copies the vocabulary into `.claude/qaqc.json` → `tagRules`
+so the validator enforces it. Give it as lists the mapping is unambiguous from:
+
+| Slot | `tagRules` key | Example |
+|---|---|---|
+| Direction (exactly 1) | `direction` | `@positive`, `@negative` |
+| Check type (exactly 1) | `checkType` | `@logic`, `@navigation`, `@ui`, `@a11y` |
+| Gates (0+) | `gates` | `@not-implemented`, `@blocked`, `@manual`, `@pending-oq` |
+| Platform (0–1) | `platform` | `@ios-only`, `@android-only` |
+| Area (exactly 1, then one screen tag) | `area` | one per folder |
+| Title prefix per direction | `titlePrefix` | `@positive` → `Positive - ` |
+
+**Triage** follows the plugin's definition (CONTEXT_RESOLUTION.md §8):
+AUTOMATABLE = the framework can drive and assert the scenario's own result on
+today's build; MANUAL = a tester can run it alone today; BLOCKED = someone
+outside QA must change something first. Say which gate tag means MANUAL and
+which means BLOCKED here; refine the definition, never contradict it.
+
 **Settled edge cases** — tagging calls already decided for this project, one
 line each (e.g. "Airplane mode is not a gate — the framework drives it";
 "Data that already exists in dev is a TEST DATA fixture, not `@blocked`").
@@ -59,8 +77,9 @@ and whether sign-in can be automated · which scenarios mutate real data.
 
 **Build-level automation blockers** — anything that stops automation for a
 whole flow on the current build (e.g. "no DEV OTP hint: a valid OTP cannot be
-read"). Name exactly which steps it blocks, so the triage count can be
-reconciled with it.
+read"). Name the **exact step** it blocks ("entering a valid code", not "the
+OTP flow") and whether a tester can do that step by hand — then the affected
+scenarios are MANUAL, not BLOCKED.
 
 **Run limits** — rate limits, real messages (SMS, email, push), payments,
 lockouts or quotas that a repeated automated run would use up. Say whether

@@ -61,16 +61,17 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py path/to/file.feature
 
 ## Installation
 
-The repository is private to the `En-Nam` organisation: you need read access,
-and git on your machine must be able to clone it (SSH key or HTTPS credentials).
+The repository is public, so no GitHub credentials are needed to install or
+update. After installing, run `/ennam-qaqc:init` once per project.
 
-```
-/plugin marketplace add En-Nam/ennam-qaqc
-/plugin install ennam-qaqc@ennam-qaqc
-```
+### Claude desktop app (Code tab)
 
-Enable it for everyone working in a project — commit this to the project's
-`.claude/settings.json`; teammates get it on their next session:
+The `/plugin` slash commands are terminal-only and do not work in the desktop
+app. Register the marketplace in a settings file instead:
+
+**For a whole project (recommended for teams)** — commit this to the project's
+`.claude/settings.json`. Everyone who opens a session in that project gets the
+plugin (they may be asked to trust it the first time):
 
 ```json
 {
@@ -81,11 +82,36 @@ Enable it for everyone working in a project — commit this to the project's
 }
 ```
 
-Update to a newer version: `/plugin marketplace update ennam-qaqc`.
+**For yourself, in every project** — put the same JSON in
+`~/.claude/settings.json`.
 
-Then, once per project: `/ennam-qaqc:init`.
+Start a new session afterwards. Check it loaded by typing `/ennam-qaqc` — you
+should see `init`, `write-tc` and `review-tc`.
 
-Local development — point a test project at your checkout instead:
+To turn the plugin on or off later: **+** next to the prompt → **Plugins** →
+**Manage plugins**. (**Add plugin** there only lists marketplaces that are
+already registered, so the settings file above comes first.)
+
+### Claude Code in a terminal
+
+```
+/plugin marketplace add En-Nam/ennam-qaqc
+/plugin install ennam-qaqc@ennam-qaqc
+```
+
+or, outside a session: `claude plugin marketplace add En-Nam/ennam-qaqc` then
+`claude plugin install ennam-qaqc@ennam-qaqc`.
+
+### Updating
+
+From a terminal: `claude plugin update ennam-qaqc@ennam-qaqc`, or inside a
+session `/plugin marketplace update ennam-qaqc`. In the desktop app, if no
+update option appears under **Manage plugins**, uninstall the plugin there and
+start a new session — the settings file reinstalls the latest version.
+
+### Local development
+
+Point a test project's `.claude/settings.json` at your checkout:
 
 ```json
 {

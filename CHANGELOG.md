@@ -2,6 +2,14 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.1.2] - 2026-10-07
+
+### Changed
+
+- README: install steps for the Claude desktop app (settings-file based — the
+  `/plugin` commands are terminal-only), update steps, and the repository is
+  now public. No functional change.
+
 ## [0.1.1] - 2026-10-06
 
 ### Changed

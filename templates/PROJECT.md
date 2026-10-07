@@ -39,6 +39,11 @@ whether a priority scheme exists — if none, say "none, do not introduce one".
 Name the header triage block (`AUTOMATION CONVERTIBILITY`,
 `MAESTRO CONVERTIBILITY`, …).
 
+**Settled edge cases** — tagging calls already decided for this project, one
+line each (e.g. "Airplane mode is not a gate — the framework drives it";
+"Data that already exists in dev is a TEST DATA fixture, not `@blocked`").
+The agent applies these before its own judgment.
+
 ## 7. Error-handling scope
 Can the interface surface HTTP errors? Can the framework intercept/stub routes?
 If yes, status-code scenarios are in scope; if no, they are backend items.
@@ -51,6 +56,16 @@ List any known divergence between them.
 ## 9. Environment & preconditions
 Runnable environments · app/site identifier and how to confirm it · auth state
 and whether sign-in can be automated · which scenarios mutate real data.
+
+**Build-level automation blockers** — anything that stops automation for a
+whole flow on the current build (e.g. "no DEV OTP hint: a valid OTP cannot be
+read"). Name exactly which steps it blocks, so the triage count can be
+reconciled with it.
+
+**Run limits** — rate limits, real messages (SMS, email, push), payments,
+lockouts or quotas that a repeated automated run would use up. Say whether
+dev resets them; if not, scenarios that hit them are not counted as
+automatable now.
 
 ## 10. Where knowledge and queued work go
 Memory system, ticket tracker, or backlog path. How to record missing
@@ -76,6 +91,21 @@ one scenario. Answer at least:
 - What the importer does not carry over (header comments, Feature name,
   priority, status…) — so what must be inside the steps
 No importer → write "None — files are not imported".
+
+`/ennam-qaqc:init` copies the rules a script can check into
+`.claude/qaqc.json` → `importRules`, and `validate_feature.py` then enforces
+them after every write. State them so the mapping is unambiguous:
+
+| Rule | `importRules` key |
+|---|---|
+| Tags allowed on the `Feature:` line? | `featureTags` (true / false) |
+| Description allowed under `Feature:`? | `featureDescription` (true / false) |
+| `Background:` allowed? | `background` (true / false) |
+| `Rule:` allowed? | `rule` (true / false) |
+| Maximum scenario-title length | `maxTitleLength` (number) |
+| Maximum tag length | `maxTagLength` (number) |
+
+Edit the rules **here**, then re-run `/ennam-qaqc:init` to refresh the copy.
 
 ---
 

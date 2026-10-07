@@ -518,7 +518,40 @@ Project-specific incidents belong in `PROJECT.md`. These recur everywhere:
   format, import rules and traps. Read first.
 - `${CLAUDE_PLUGIN_ROOT}/docs/CONTEXT_RESOLUTION.md` — how the context file,
   template and test-cases root are found, and the defaults.
-- `${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py` — Gherkin + universal-rule
-  linter (runs automatically after every write to a `.feature`).
+- `${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py` — Gherkin, universal-rule
+  and project import-rule linter (runs automatically after every write to a
+  `.feature`; import rules come from `.claude/qaqc.json` → `importRules`).
 - The project's run/report workflow and automation-authoring guidance, as named
   in `PROJECT.md`.
+
+---
+
+## 14. Lessons from review (ennam-qaqc 0.2.0)
+
+Findings from comparing plugin output with a hand-written file. They sharpen
+§3.2, §6, §9 and §10; they do not replace them.
+
+- **Observable or nothing.** A rule whose only evidence is server-side (storage
+  format, generator quality, delivery logs, database rows) gets no scenario.
+  Record it in the coverage matrix as `NOT UI-OBSERVABLE — <why>`. `@blocked` is
+  for a visible outcome whose **setup** needs someone else.
+- **No question-scenarios.** An open question lives in OPEN QUESTIONS. A
+  scenario always states an expected result.
+- **Observed copy bug ≠ document typo.** §9's "capture bugs verbatim" applies to
+  copy **seen in the product**. A typo only in the spec is an open question;
+  assert the settled part.
+- **Carry observations forward.** An earlier file's SPEC-DIFFs and observed copy
+  outrank the document under app-truth — even when a new file replaces it.
+- **One partition, one place.** An input covered by an Outline row gets no
+  standalone scenario for the same outcome. Three or more scenarios differing
+  only in data are one Outline.
+- **Boundary for what others own.** Search the suite for files citing the same
+  spec ids or screens; assert their behaviour only at the hand-off.
+- **Honest automation counts.** A build-level blocker applies to exactly the
+  scenarios that pass through the blocked step. A scenario that uses up a
+  rate-limited real resource or locks shared state is not "automatable now"
+  (`[LIMIT]`). The triage block says which scenarios each reason moves.
+- **A sibling shows style, not rules.** Never copy an import-rule break (tags on
+  `Feature:`, legacy titles) from an existing file.
+- **Findable coverage.** Map each requirement to scenario titles, and put a
+  one-line coverage summary in the header.

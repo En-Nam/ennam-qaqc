@@ -28,6 +28,12 @@ counts as "given by the user". If §2 step 4 fires, ask and wait:
 option 1 → use the path; option 2 → tell the user to run `/ennam-qaqc:init`, then
 stop; option 3 → `Context file: none (plugin defaults)`.
 
+Import rules: if `.claude/qaqc.json` has an `importRules` object →
+`Import rules: machine-checked by the validator (<its keys>)`. Otherwise →
+`Import rules: not machine-checked — check them yourself`, and remember to add
+one line to the relay in Step 8: "Tip: run `/ennam-qaqc:init` → refresh import
+rules, so the validator enforces them." (No question — this is not a gate.)
+
 ## Step 2 — Collect the material (gate)
 
 - `@file` / paths → read them
@@ -72,6 +78,10 @@ case id on its `# Feature:` line (`grep -rl "(<id>)" <root>`), ask:
 
 → Mode `update` / `create` (new path) / `preview`. No existing file → `create`.
 
+Whatever the choice, the existing file is the **Prior file**
+(CONTEXT_RESOLUTION.md §7) — its observations from the product are carried
+forward even into a new file. No existing file → `Prior file: none`.
+
 ## Step 6 — Dispatch
 
 Pick the closest sibling (CONTEXT_RESOLUTION.md §6). Call `Agent` with
@@ -91,7 +101,9 @@ Write test cases.
 - Template: <path> (<why — CONTEXT_RESOLUTION.md §3 step n>)
 - Test-cases root: <path>
 - Closest sibling: <path | none>
+- Prior file: <path | none>
 - Design: <links | <TODO> (user skipped) | none mentioned>
+- Import rules: <machine-checked by the validator (<keys>) | not machine-checked — check them yourself>
 - Validator: python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py
 - Today: <YYYY-MM-DD>
 
@@ -105,7 +117,8 @@ then "Read from <path>" for files, or the full text for pasted/fetched content>
 3. <context file, if any>
 4. <template>
 5. <closest sibling, if any>
-6. <each material file>
+6. <prior file, if any>
+7. <each material file>
 ```
 
 ## Step 7 — NEEDS_INPUT loop
@@ -117,4 +130,5 @@ a Final Report arrives.
 
 ## Step 8 — Relay
 
-Copy the Final Report verbatim. Add one line before it only if something failed.
+Copy the Final Report verbatim. Add one line before it only if something failed,
+and the import-rules tip from Step 1 after it when it applies.

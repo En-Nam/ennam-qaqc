@@ -1,5 +1,13 @@
 {
   "projectContext": ".claude/skills/PROJECT.md",
   "template": "test-cases/TEMPLATE.feature",
-  "testCasesRoot": "test-cases/"
+  "testCasesRoot": "test-cases/",
+  "importRules": {
+    "featureTags": false,
+    "featureDescription": false,
+    "background": false,
+    "rule": false,
+    "maxTitleLength": 200,
+    "maxTagLength": 100
+  }
 }

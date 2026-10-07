@@ -29,11 +29,22 @@ The plugin finds it in this order: a path you give → `.claude/qaqc.json` → k
 spots → it asks you (point to a file / draft one / continue on defaults). Full
 procedure and defaults: `docs/CONTEXT_RESOLUTION.md`.
 
-`.claude/qaqc.json` is written by `init` and holds **paths only**:
+`.claude/qaqc.json` is written by `init`: three paths, plus a machine-readable
+copy of the importer's rules (from the context file's §13) for the validator:
 
 ```json
-{ "projectContext": ".claude/skills/PROJECT.md", "template": "test-cases/TEMPLATE.feature", "testCasesRoot": "test-cases/" }
+{
+  "projectContext": ".claude/skills/PROJECT.md",
+  "template": "test-cases/TEMPLATE.feature",
+  "testCasesRoot": "test-cases/",
+  "importRules": { "featureTags": false, "featureDescription": false, "background": false,
+                   "rule": false, "maxTitleLength": 200, "maxTagLength": 100 }
+}
 ```
+
+Change import rules in the context file, then re-run `/ennam-qaqc:init` →
+"refresh import rules". Upgrading from 0.1.x? Run that once — older pointers
+have no `importRules`, so the rules are not machine-checked until you do.
 
 **Template:** the one `qaqc.json` names → the one the context file names →
 `<root>/TEMPLATE.feature` → the plugin default (`templates/TEMPLATE.feature`).
@@ -49,15 +60,24 @@ Everything else is decided in writing: unclear behaviour becomes
 ## Validator
 
 `scripts/validate_feature.py` runs automatically after every write to a
-`.feature` file and checks Gherkin validity plus the universal QC-TCs rules
-(Given/When/Then in every scenario, full-line comments, tag lines hold only tags,
-every `Examples` column used, …). Project-specific import rules (title length,
-`Background:` allowed, tags on `Feature:`) are checked by the agent from your
-context file.
+`.feature` file. It checks:
+
+- **Gherkin validity and the universal QC-TCs rules** (G1–G14) —
+  Given/When/Then in every scenario, full-line comments, tag lines hold only
+  tags, every `Examples` column used, …
+- **Your project's import rules** (P1–P6) from `.claude/qaqc.json` → tags or a
+  description under `Feature:`, `Background:`, `Rule:`, title and tag length.
+- **Two warnings** — duplicate scenario titles (G15), and steps a tester cannot
+  observe in the product, such as server-side inspection or delivery logs (G16).
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py path/to/file.feature
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py --config other/qaqc.json path/to/file.feature
 ```
+
+Rules a script cannot judge (tag vocabulary, observability, duplicate
+partitions, ownership, honest automation counts) are checked by the agent and
+by `/ennam-qaqc:review-tc`.
 
 ## Installation
 

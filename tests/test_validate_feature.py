@@ -216,5 +216,126 @@ class CliAndHookTest(unittest.TestCase):
         self.assertEqual(vf.run_hook(io.StringIO("[]"), err), 0)
 
 
+C4K_RULES = {
+    "featureTags": False,
+    "featureDescription": False,
+    "background": False,
+    "rule": False,
+    "maxTitleLength": 200,
+    "maxTagLength": 100,
+}
+
+
+def rule_fails(text, rules=C4K_RULES):
+    return [f.code for f in vf.validate(text, rules) if f.severity == "FAIL"]
+
+
+class ImportRulesTest(unittest.TestCase):
+    def test_valid_file_passes_strict_rules(self):
+        self.assertEqual(rule_fails(VALID), [])
+
+    def test_p1_tags_on_feature_line(self):
+        text = VALID.replace("Feature: Sample\n", "@area @screen\nFeature: Sample\n")
+        self.assertIn("P1", rule_fails(text))
+        self.assertEqual(rule_fails(text, None), [])
+
+    def test_p1_allowed_when_rule_permits(self):
+        text = VALID.replace("Feature: Sample\n", "@area @screen\nFeature: Sample\n")
+        self.assertEqual(rule_fails(text, dict(C4K_RULES, featureTags=True)), [])
+
+    def test_p2_description_under_feature(self):
+        text = VALID.replace("  # As a user\n", "  As a user I want things\n")
+        self.assertIn("P2", rule_fails(text))
+
+    def test_p2_does_not_flag_scenario_description(self):
+        text = VALID.replace("    Given User is on the form\n", "    Some scenario description\n    Given User is on the form\n", 1)
+        self.assertNotIn("P2", rule_fails(text))
+
+    def test_p3_background(self):
+        text = VALID.replace("  # As a user\n", "  Background:\n    Given User is signed in\n")
+        self.assertIn("P3", rule_fails(text))
+
+    def test_p4_rule_keyword(self):
+        text = VALID.replace("  # AC-01 - happy path.\n", "  Rule: Saving\n  # AC-01 - happy path.\n")
+        self.assertIn("P4", rule_fails(text))
+
+    def test_p5_title_too_long(self):
+        text = VALID.replace("Save the form", "x" * 250)
+        self.assertIn("P5", rule_fails(text))
+
+    def test_p6_tag_too_long(self):
+        text = VALID.replace("@positive @logic @area @screen", "@positive @logic @" + "a" * 120 + " @screen", 1)
+        self.assertIn("P6", rule_fails(text))
+
+    def test_boolean_is_not_a_length_limit(self):
+        self.assertEqual(rule_fails(VALID.replace("Save the form", "x" * 250), {"maxTitleLength": True}), [])
+
+
+class ConfigDiscoveryTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        (self.root / "test-cases" / "Area").mkdir(parents=True)
+        self.feature = self.root / "test-cases" / "Area" / "x.feature"
+        self.feature.write_text(VALID.replace("Feature: Sample\n", "@area\nFeature: Sample\n"), encoding="utf-8")
+
+    def write_config(self, data):
+        (self.root / ".claude").mkdir(exist_ok=True)
+        path = self.root / ".claude" / "qaqc.json"
+        path.write_text(data if isinstance(data, str) else json.dumps(data), encoding="utf-8")
+        return path
+
+    def test_cli_discovers_config_upwards(self):
+        self.write_config({"importRules": C4K_RULES})
+        out = io.StringIO()
+        self.assertEqual(vf.run_cli([str(self.feature)], out), 1)
+        self.assertIn("P1", out.getvalue())
+        self.assertIn("import rules:", out.getvalue())
+
+    def test_cli_explicit_config(self):
+        cfg = self.root / "elsewhere.json"
+        cfg.write_text(json.dumps({"importRules": C4K_RULES}), encoding="utf-8")
+        self.assertEqual(vf.main(["--config", str(cfg), str(self.feature)]), 1)
+
+    def test_no_import_rules_key_means_generic_checks_only(self):
+        self.write_config({"projectContext": "PROJECT.md"})
+        self.assertEqual(vf.run_cli([str(self.feature)], io.StringIO()), 0)
+
+    def test_malformed_config_is_reported_not_fatal(self):
+        self.write_config("{not json")
+        out = io.StringIO()
+        self.assertEqual(vf.run_cli([str(self.feature)], out), 0)
+        self.assertIn("could not read", out.getvalue())
+
+    def test_hook_uses_discovered_config(self):
+        self.write_config({"importRules": C4K_RULES})
+        err = io.StringIO()
+        payload = json.dumps({"tool_input": {"file_path": str(self.feature)}})
+        self.assertEqual(vf.run_hook(io.StringIO(payload), err), 2)
+        self.assertIn("P1", err.getvalue())
+
+
+class HeuristicsTest(unittest.TestCase):
+    def test_g15_duplicate_title_is_warn(self):
+        dup = VALID.split("  @negative")[0]
+        text = dup + dup.split("Feature: Sample\n", 1)[1]
+        found = [(f.code, f.severity) for f in vf.validate(text)]
+        self.assertIn(("G15", "WARN"), found)
+        self.assertEqual([c for c, s in found if s == "FAIL"], [])
+
+    def test_g16_unobservable_then_is_warn(self):
+        text = VALID.replace("    When User taps Save\n", "    When The stored record is inspected server-side\n")
+        self.assertEqual([(f.code, f.severity) for f in vf.validate(text)], [("G16", "WARN")])
+
+    def test_g16_ignores_given_setup(self):
+        text = VALID.replace("    Given User is on the form\n", "    Given The account was created server-side\n", 1)
+        self.assertEqual(codes(text), [])
+
+    def test_g16_delivery_log(self):
+        text = VALID.replace('    Then The confirmation "Saved" is displayed\n', "    Then The delivery log shows the SMS was sent\n")
+        self.assertIn("G16", codes(text))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 {
   "name": "ennam-qaqc",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "QA test-case authoring — writes import-ready Gherkin .feature files from any material, following each project's template, context file and the QC-TCs method",
   "author": {
     "name": "Kai"

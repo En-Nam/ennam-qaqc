@@ -56,8 +56,18 @@ versions of the target as well: every `--prior` file and
      scenario present in an earlier version (working copy, git history, or a
      file passed with `--source`/`--prior`) that is neither kept nor retired
      with a reason.
-   - **Run limits** (Warning) — a scenario counted as automatable that uses up a
-     rate-limited real resource or locks shared state, without `[LIMIT]`.
+   - **Run limits** (Warning) — `[LIMIT]` applied inconsistently: a scenario
+     that hits a cap or triggers a lockout counted as automatable, or a scenario
+     that merely uses one unit marked `[LIMIT]` while others that use one too are
+     automatable (CONTEXT_RESOLUTION.md §8).
+   - **Message template filled in by hand** (Critical) — a literal string built
+     from a source template (`X attempts remaining`) where the source's own
+     examples disagree (`1 attempt` vs `1 attempts`); it should be an open
+     question asserting only the agreed part.
+   - **Routing tags changed** (Critical) — area or screen tags that differ from
+     an earlier version of the file without a reason, or a "screen" tag that
+     names a topic (`@session-persistence`, `@accessibility`). Routing tags are
+     the suite's lookup keys.
 6. With a source: every inventory item in the source — ACs, Rules, Alts, input
    fields, interaction elements and their enabled/visible conditions, display
    states, UX and accessibility items, rate limits — appears in the COVERAGE

@@ -76,8 +76,13 @@ case id on its `# Feature:` line (`grep -rl "(<id>)" <root>`), ask:
 > 1. Update it in place
 > 2. Create a new file (I'll propose a name)
 > 3. Preview what would be added/changed, then decide
+>
+> Is there a newer copy of this file outside this repo — e.g. a teammate's
+> version with findings from the app? If so, give its path (or reply "no").
 
 → Mode `update` / `create` (new path) / `preview`. No existing file → `create`.
+A path given in the same answer is added as a `--prior` source; "no" or no
+answer adds nothing. (One question, not a second gate.)
 
 Whatever the choice, collect the **Prior file** sources (CONTEXT_RESOLUTION.md
 §7) — their observations from the product are carried forward even into a new

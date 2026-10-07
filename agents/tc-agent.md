@@ -48,6 +48,12 @@ material in your prompt.
    `OQ-xx` with the open-question tag; assert only the settled part (e.g. "a
    Terms and Conditions message with an underlined link"), never the broken
    string — asserting it makes a correct app fail.
+   **Message templates count as documents.** When the source gives a template
+   with a variable (`"Invalid code. X attempts remaining"`), compare every
+   concrete example the source shows for it. If they disagree in wording —
+   singular vs plural (`1 attempt` / `1 attempts`), a dropped prefix — raise an
+   `OQ-xx` and assert only what they agree on (the count, the prefix), never a
+   string filled in by hand.
 4. **Every scenario is observable and has an expected result.**
    - The `When` and `Then` describe what a tester does and **sees or hears in
      the product**. A rule whose only evidence is server-side (stored format,
@@ -74,7 +80,10 @@ material in your prompt.
    (CONTEXT_RESOLUTION.md §5). The import rules (context §13 / `importRules`)
    beat everything. A sibling or prior file shows **style**, never **rules**:
    never copy tags on `Feature:`, legacy `Scenario -` titles, a description under
-   `Feature:` or any tag outside the vocabulary from them.
+   `Feature:` or any tag outside the vocabulary from them. The one thing a prior
+   file **does** fix is its **routing tags** (area, screen): they are the suite's
+   lookup keys and carry over unchanged unless the context file says otherwise
+   (CONTEXT_RESOLUTION.md §7). A screen tag names a screen, never a topic.
 9. **Template shape.** Keep every template header block, in the template's order,
    plus the template's `IMPORT RULES` comment **verbatim**, the `Feature:` line
    and the COVERAGE block. Add SKILL.md §4.1 blocks where the material supports
@@ -103,6 +112,7 @@ material in your prompt.
      raise an `OQ-xx` naming both and assert only what both agree on. Never pick
      the document silently.
    - List every prior scenario by title — each one's fate goes in the report.
+   - Note the prior routing tags (area, screen). Reuse them.
 3. **Owners** — grep the test-cases root for other `.feature` files that cite the
    same DR/spec ids, screen names or feature names (CONTEXT_RESOLUTION.md §7).
    Hand a behaviour to an owner **only with evidence**: a named scenario in that
@@ -148,10 +158,14 @@ boundary and negative depth. Plan numbered sections:
 - **Group by data.** Three or more scenarios that differ only in input data and
   expected copy are one `Scenario Outline`.
 - **Owned elsewhere** → boundary only (Phase 0.3).
-- **Run limits.** A scenario that uses up a rate-limited real resource (SMS,
-  email, push, payment) or locks shared state (lockouts, cooldowns, quotas) is not
-  automatable now unless the context file says dev resets it: give it the
+- **Run limits.** `[LIMIT]` is for a scenario that **hits a cap or triggers a
+  lockout** (the sixth send in an hour, the third wrong code) — give it the
   project's manual gate and a `# [LIMIT] <resource and limit>` comment line.
+  A scenario that merely **uses one unit** (one SMS send to reach a screen, one
+  wrong attempt) stays automatable; write the **run budget** in PRECONDITIONS
+  instead (units per run, how to reuse them, the cap). Apply the same test to
+  every scenario — never mark one single-send scenario `[LIMIT]` while others
+  that also need a send stay automatable.
 - **Blockers.** Name the blocked step exactly ("entering a valid code", not
   "tapping Continue"). It moves only scenarios whose `When`/`Then` needs that
   step — reaching the screen, entering a wrong code or going offline before the
@@ -190,9 +204,13 @@ and TEST DATA. Fill:
   reset, data mutation, run limits, markers (`[BACKEND]`, `[LIMIT]`, `[INFERRED]`,
   `[ASSUMPTION]`).
 - `TEST DATA` — role → value → notes (source of each value); fixtures named.
-- Triage block (name per context file §6, else the template's) — ✅ now /
-  `[BACKEND]` / ❌ not auto with counts, plus "Automation for this file does not
-  exist yet." when true. **Reconcile:** when a blocker or run limit applies, one
+- Triage block (name per context file §6, else the template's). Its **first
+  line** is the machine-checked total (P12), counted from the tags, first match
+  wins (blocked, then manual):
+  `#   Triage: <A> automatable / <M> manual / <B> blocked (<N> scenarios)`.
+  Then ✅ now / `[BACKEND]` / ❌ not auto with counts, plus "Automation for this
+  file does not exist yet." when true. Never explain away a mismatch — fix the
+  count. **Reconcile:** when a blocker or run limit applies, one
   line says which scenarios it moves out of ✅ and why, so the counts and the
   header never contradict each other.
 - The template's `IMPORT RULES` comment, verbatim.
@@ -252,7 +270,9 @@ header's coverage summary line must match these counts.
    - every inventory item (fields, interaction elements, display states, UX
      items) is in COVERAGE;
    - no scenario mixes parts that triage differently;
-   - no document-only typo asserted as a literal string.
+   - no document-only typo asserted as a literal string, and no message template
+     filled in by hand where the source's examples disagree;
+   - routing tags match the prior file's (or the change is reported);
 5. Triage counts with grep — BLOCKED = blocked/not-implemented tags; MANUAL =
    visual/a11y/manual tags; AUTOMATABLE = the rest. The triage block and its
    reconciliation line must agree, and every `@blocked` must name what someone
@@ -298,6 +318,8 @@ Owned elsewhere (boundary only): <behaviour → file>, … | none
 Carried forward from prior file: <SPEC-DIFFs / copy bugs> | none
 Prior-vs-document conflicts raised as OQs: <OQ-xx …> | none
 Settled edge cases applied: <each one → how> | none in the context file
+Routing tags: <unchanged from prior file: @area @screen | changed: old → new, because …>
+Prior sources read: <working copy @ commit; git history (n commits); --prior files> — copies outside these are not included
 
 ### Prior scenarios (when a prior file was read)
 | Prior scenario | Fate | Where / why |

@@ -50,6 +50,7 @@ so the validator enforces it. Give it as lists the mapping is unambiguous from:
 | Platform (0–1) | `platform` | `@ios-only`, `@android-only` |
 | Area (exactly 1, then one screen tag) | `area` | one per folder |
 | Title prefix per direction | `titlePrefix` | `@positive` → `Positive - ` |
+| Gates that mean BLOCKED / MANUAL | `triage` | `{"blocked": ["@blocked"], "manual": ["@ui", "@a11y", "@manual"]}` |
 
 **Triage** follows the plugin's definition (CONTEXT_RESOLUTION.md §8):
 AUTOMATABLE = the framework can drive and assert the scenario's own result on
@@ -83,8 +84,9 @@ scenarios are MANUAL, not BLOCKED.
 
 **Run limits** — rate limits, real messages (SMS, email, push), payments,
 lockouts or quotas that a repeated automated run would use up. Say whether
-dev resets them; if not, scenarios that hit them are not counted as
-automatable now.
+dev resets them. A scenario that **hits** a cap or **triggers** a lockout is not
+automatable now; a scenario that **uses one unit** is, within a stated **run
+budget** (e.g. "one OTP send per run, at most 5 runs per hour per number").
 
 ## 10. Where knowledge and queued work go
 Memory system, ticket tracker, or backlog path. How to record missing

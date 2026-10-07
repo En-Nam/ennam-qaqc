@@ -576,3 +576,17 @@ Findings from comparing plugin output with a hand-written file. They sharpen
   accessibility items, rate limits — not only ACs and Rules.
 - **Tag rules are machine-checked** (`tagRules` in `.claude/qaqc.json`), like
   import rules. A sibling's tag order is not evidence of the vocabulary.
+
+### 0.4.0 additions
+
+- **Totals are counted, not written.** The triage block's first line is
+  `# Triage: A automatable / M manual / B blocked (N scenarios)`, and the
+  validator checks it against the tags.
+- **`[LIMIT]` means hitting a cap or triggering a lockout**, not using one unit.
+  State a run budget for single-unit use and apply the test to every scenario.
+- **Message templates are documents too.** Where a template's examples disagree
+  (singular vs plural), raise an open question and assert the agreed part.
+- **Routing tags carry over** from the prior file; a screen tag names a screen.
+- **The `IMPORT RULES` comment is copied, not paraphrased** — a reworded one now
+  fails validation.
+

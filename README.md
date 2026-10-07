@@ -51,8 +51,8 @@ for the validator:
 
 Change rules in the context file, then re-run `/ennam-qaqc:init` → "refresh
 rules". Upgrading from an older version? Run that once — older pointers lack
-`importRules` (before 0.2.0) or `tagRules` (before 0.3.0), and those rules are
-not machine-checked until you do.
+`importRules` (before 0.2.0), `tagRules` (before 0.3.0) or `tagRules.triage`
+(before 0.4.0), and those rules are not machine-checked until you do.
 
 **Earlier versions of a feature file** are read before anything is written — the
 working copy (uncommitted edits included), its git history, and any file you
@@ -87,7 +87,10 @@ Everything else is decided in writing: unclear behaviour becomes
   description under `Feature:`, `Background:`, `Rule:`, title and tag length.
 - **Your project's tag rules** (P7–P10) → one direction and one check-type tag,
   slot order, one area then one screen tag, title prefix matching the direction.
-- **The template's `IMPORT RULES` comment** copied verbatim (P11, a warning).
+- **The template's `IMPORT RULES` comment** copied verbatim (P11).
+- **The header's triage totals** — `# Triage: A automatable / M manual / B blocked (N scenarios)`
+  must match the tags (P12; a missing line is a warning). Header comments only:
+  the importer never reads them, so the importable Gherkin is unchanged.
 - **Two warnings** — duplicate scenario titles (G15), and steps a tester cannot
   observe in the product, such as server-side inspection or delivery logs (G16).
 

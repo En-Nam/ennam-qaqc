@@ -34,7 +34,11 @@ may be absent or `null`.
     "gates": ["@not-implemented", "@blocked", "@manual", "@pending-oq"],
     "platform": ["@ios-only", "@android-only"],
     "area": ["@authentication", "@account", "@explore"],
-    "titlePrefix": { "@positive": "Positive - ", "@negative": "Negative - " }
+    "titlePrefix": { "@positive": "Positive - ", "@negative": "Negative - " },
+    "triage": {
+      "blocked": ["@blocked", "@not-implemented"],
+      "manual": ["@ui", "@a11y", "@manual"]
+    }
   }
 }
 ```
@@ -60,7 +64,17 @@ screen), exactly one `area` tag followed by one screen tag (any other tag), and
 the title prefix that `titlePrefix` maps the direction tag to. A slot list that
 is absent is not checked.
 
-**The template's `IMPORT RULES` comment** is checked too (P11, a warning):
+**`tagRules.triage`** maps gate tags to MANUAL and BLOCKED (first match wins:
+blocked, then manual, else automatable). With it, the validator checks the
+header's triage line against the tags (P12):
+
+```
+#   Triage: 20 automatable / 24 manual / 1 blocked (45 scenarios)
+```
+
+The line is a header comment — the importer never reads it.
+
+**The template's `IMPORT RULES` comment** is checked too (P11, a failure):
 whenever a `qaqc.json` is found, the comment block starting `# IMPORT RULES` in
 the resolved template must appear verbatim before `Feature:`.
 
@@ -160,6 +174,12 @@ Findings only reach the plugin if they are in one of these. A teammate's
 uncommitted copy on another machine is invisible: commit and push it, pull it
 here, or pass it with `--prior`.
 
+**Routing tags carry over.** The prior file's area and screen tags are the
+suite's lookup keys (flows, `/qa-run`, filters). Keep them unless the context
+file says otherwise; a change is reported, never silent. A screen tag names a
+screen or view — never a topic or check type (`@session-persistence`,
+`@accessibility` are not screens).
+
 **Owners** — other `.feature` files that cite the same DR/spec ids, the same
 screens or the same feature names (`grep -rl`). Behaviour is handed to an owner
 only with **evidence**: a named scenario in that file that asserts it. A screen
@@ -183,3 +203,10 @@ it). Classify each scenario by **its own expected result**, not the whole flow:
   BLOCKED.**
 - **One scenario, one triage.** If parts of a `Then` would triage differently
   (a screen change plus an SMS arriving on a handset), split the scenario.
+- **`[LIMIT]` means exhausting or locking, not using.** A scenario is `[LIMIT]`
+  (MANUAL) when running it **hits a cap or triggers a lockout** — the sixth send
+  in an hour, the third wrong code, the eleventh failed validation. A scenario
+  that merely **uses one unit** (one SMS send, one wrong attempt) stays
+  automatable; PRECONDITIONS states the **run budget** instead, e.g. "one OTP
+  send per run; reuse the active code across the OTP-screen scenarios; at most
+  5 runs per hour per number".

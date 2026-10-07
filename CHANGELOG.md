@@ -2,6 +2,38 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.4.0] - 2026-10-07
+
+Driven by the third review. 0.3.0's fixes held; this release closes the gaps the
+review missed. **No change to the importable output**: `TEMPLATE.feature` is
+untouched, and every new check reads header comments or tags only.
+
+### Added
+
+- **P12** — the triage block's first line,
+  `# Triage: A automatable / M manual / B blocked (N scenarios)`, is checked
+  against the tags using a new `tagRules.triage` mapping (first match wins:
+  blocked, then manual). A disagreement fails; a missing line warns. The 0.3.0
+  output stated 23 manual where the tags gave 24.
+- `write-tc`'s existing-file question also asks for a newer copy outside the
+  repo (e.g. a teammate's) and adds it as a `--prior` source.
+
+### Changed
+
+- **P11 is now a FAIL** — a paraphrased `IMPORT RULES` comment blocks the write
+  (it had been rewritten in three runs).
+- **Routing tags carry over** from the prior file; a screen tag must name a
+  screen. 0.3.0 replaced the suite's `@phone-auth` with five new tags, two of
+  them topics.
+- **Message templates are documents** — when a template's examples disagree
+  (`1 attempt` / `1 attempts`), the agent raises an open question and asserts
+  only the agreed part.
+- **`[LIMIT]` redefined** — hitting a cap or triggering a lockout, not using one
+  unit; single-unit use is covered by a run budget in PRECONDITIONS.
+- The report names the prior sources read and the routing tags kept or changed.
+- `review-tc` flags hand-filled templates, changed routing tags and inconsistent
+  `[LIMIT]`.
+
 ## [0.3.0] - 2026-10-07
 
 Driven by the second review (0.2.0 output vs Nghĩa's file). 0.2.0's fixes held,

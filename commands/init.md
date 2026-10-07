@@ -112,7 +112,10 @@ Unstated → leave the key out. "Files are not imported" → `"importRules": {}`
 **Tag rules** come from the context file's §6 tag vocabulary (else the
 template's Tag legend): the tags per slot → `direction`, `checkType`, `gates`,
 `platform`; the area tag per folder → `area`; the scenario naming convention →
-`titlePrefix` (e.g. `{"@positive": "Positive - ", "@negative": "Negative - "}`).
+`titlePrefix` (e.g. `{"@positive": "Positive - ", "@negative": "Negative - "}`);
+the triage mapping (which gates mean BLOCKED, which mean MANUAL — PROJECT.md
+§6.4 or the template's convertibility block) → `triage`
+(e.g. `{"blocked": ["@blocked", "@not-implemented"], "manual": ["@ui", "@a11y", "@manual"]}`).
 Leave out a slot the sources do not list. Never add a tag that appears only in
 an existing `.feature` file — files show usage, not the vocabulary.
 

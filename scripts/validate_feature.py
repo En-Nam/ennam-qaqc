@@ -59,6 +59,11 @@ Triage line (only when tagRules.triage maps gate tags to MANUAL / BLOCKED):
            disagrees with the scenarios' tags (first match wins: blocked > manual)
   P12 WARN no such line in the header
 
+Settled edge cases (only when tagRules.settledEdgeCases is set):
+  P13 FAIL a scenario whose title or steps match a rule's `when` pattern carries one of
+           its `notTags` (e.g. airplane mode is not a gate -> no @manual / @blocked)
+  P13 WARN a rule whose `when` is not a valid regular expression
+
 Python 3.7+, standard library only.
 """
 
@@ -273,6 +278,8 @@ def validate(text, rules=None, tag_rules=None, import_comment=None):
         _check_import_rules(rules, facts, scenarios, add)
     if tag_rules:
         _check_tag_rules(tag_rules, scenarios, add)
+        if isinstance(tag_rules.get("settledEdgeCases"), list):
+            _check_settled_edge_cases(tag_rules["settledEdgeCases"], scenarios, feature_lines[0] if feature_lines else 1, add)
         if isinstance(tag_rules.get("triage"), dict):
             _check_triage_line(text, tag_rules["triage"], scenarios, feature_lines[0] if feature_lines else 1, add)
     if import_comment and feature_lines:
@@ -400,6 +407,26 @@ def _check_tag_rules(tag_rules, scenarios, add):
         prefix = prefixes.get(direction) if direction else None
         if isinstance(prefix, str) and not sc.title.startswith(prefix):
             add("P10", "FAIL", sc.line, "%s scenario title must start with %r" % (direction, prefix))
+
+
+def _check_settled_edge_cases(rules, scenarios, feature_line, add):
+    for rule in rules:
+        if not isinstance(rule, dict) or not isinstance(rule.get("when"), str):
+            continue
+        try:
+            pattern = re.compile(rule["when"], re.IGNORECASE)
+        except re.error as exc:
+            add("P13", "WARN", feature_line, "settledEdgeCases pattern %r is invalid (%s); not checked" % (rule["when"], exc))
+            continue
+        banned = set(rule.get("notTags") or [])
+        why = rule.get("why") or "a settled edge case in the context file"
+        for sc in scenarios:
+            text = " ".join([sc.title] + [step for _, _, step in sc.steps])
+            hit = sorted(banned & {tag for _, tag in sc.tags})
+            if hit and pattern.search(text):
+                line = sc.tags[0][0] if sc.tags else sc.line
+                add("P13", "FAIL", line, "scenario %r matches %r but is tagged %s: %s"
+                    % (_short(sc.title), rule["when"], " ".join(hit), why))
 
 
 def triage_counts(triage, scenarios):

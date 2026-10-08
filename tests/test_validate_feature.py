@@ -486,5 +486,48 @@ class TriageLineTest(unittest.TestCase):
         self.assertEqual([f.code for f in vf.validate(text, None, TAG_RULES) if f.code == "P12"], [])
 
 
+SETTLED_RULES = dict(TAG_RULES, settledEdgeCases=[{
+    "when": "airplane mode|no internet connection",
+    "notTags": ["@manual", "@blocked"],
+    "why": "PROJECT.md 6.3 - airplane mode is not a gate",
+}])
+
+
+def settled(text, tag_rules=SETTLED_RULES):
+    return [(f.code, f.severity) for f in vf.validate(text, None, tag_rules) if f.code == "P13"]
+
+
+OFFLINE = VALID.replace("    When User taps Save\n", "    And The device is in airplane mode\n    When User taps Save\n")
+
+
+class SettledEdgeCaseTest(unittest.TestCase):
+    def test_offline_scenario_without_gate_passes(self):
+        self.assertEqual(settled(OFFLINE), [])
+
+    def test_offline_scenario_tagged_manual_fails(self):
+        text = OFFLINE.replace("@positive @logic @area @screen", "@positive @logic @manual @area @screen", 1)
+        found = [f for f in vf.validate(text, None, SETTLED_RULES) if f.code == "P13"]
+        self.assertEqual([(f.code, f.severity) for f in found], [("P13", "FAIL")])
+        self.assertIn("airplane mode is not a gate", found[0].message)
+
+    def test_match_is_case_insensitive_and_reads_the_title(self):
+        text = VALID.replace("Scenario: Positive - Save the form", "Scenario: Positive - Save the form with No Internet Connection")
+        text = text.replace("@positive @logic @area @screen", "@positive @logic @blocked @area @screen", 1)
+        self.assertEqual(settled(text), [("P13", "FAIL")])
+
+    def test_other_gates_are_allowed(self):
+        text = OFFLINE.replace("@positive @logic @area @screen", "@positive @logic @pending-oq @area @screen", 1)
+        self.assertEqual(settled(text), [])
+
+    def test_bad_pattern_is_reported_not_fatal(self):
+        rules = dict(TAG_RULES, settledEdgeCases=[{"when": "(unclosed", "notTags": ["@manual"]}])
+        found = [(f.code, f.severity) for f in vf.validate(OFFLINE, None, rules) if f.code == "P13"]
+        self.assertEqual(found, [("P13", "WARN")])
+
+    def test_no_settled_rules_no_check(self):
+        text = OFFLINE.replace("@positive @logic @area @screen", "@positive @logic @manual @area @screen", 1)
+        self.assertEqual(settled(text, TAG_RULES), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -63,6 +63,14 @@ versions of the target as well: every `--prior` file,
      that hits a cap or triggers a lockout counted as automatable, or a scenario
      that merely uses one unit marked `[LIMIT]` while others that use one too are
      automatable (CONTEXT_RESOLUTION.md §8).
+   - **Contradictory assertions** (Critical) — two scenarios or Outline rows
+     expecting different outcomes for the same input and state; at most one can
+     pass. Should be one open question.
+   - **Threshold crossed silently** (Critical) — a scenario whose `Given` +
+     `When` crosses a cap the source defines (attempts, rate limit, timer) but
+     expects something other than that cap's outcome.
+   - **Behaviour without a source** (Critical) — an assertion that contradicts
+     the DR with no SPEC-DIFF naming where it was observed.
    - **Disputed string quoted** (Critical) — a literal that an `OQ-xx` says is
      unresolved appears in quotes in a step (or as a literal display value).
    - **More than one case id** (Warning) — the `# Feature:` line carries one id

@@ -61,7 +61,10 @@ which means BLOCKED here; refine the definition, never contradict it.
 **Settled edge cases** — tagging calls already decided for this project, one
 line each (e.g. "Airplane mode is not a gate — the framework drives it";
 "Data that already exists in dev is a TEST DATA fixture, not `@blocked`").
-The agent applies these before its own judgment.
+The agent applies these before its own judgment. Phrase the ones you can as
+"a scenario mentioning X is never tagged Y" (e.g. "a scenario that uses airplane
+mode is never `@manual` or `@blocked`") — `/ennam-qaqc:init` copies those into
+`tagRules.settledEdgeCases` and the validator then enforces them.
 
 ## 7. Error-handling scope
 Can the interface surface HTTP errors? Can the framework intercept/stub routes?

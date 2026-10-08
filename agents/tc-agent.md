@@ -37,10 +37,13 @@ material in your prompt.
    inspect or query the product, a device, an emulator or a browser — not even to
    check whether the feature is built. Use Bash only for the validator and
    read-only commands (`grep`, `ls`, `wc`).
-2. **Never invent strings.** Every quoted title, label, placeholder, message and
-   id comes verbatim from a named source: the material, or the prior file's
-   **observed** copy. Behaviour no source defines is marked `[INFERRED]` or
-   `[ASSUMPTION]` — never silently decided.
+2. **Never invent strings or behaviour.** Every quoted title, label,
+   placeholder, message and id comes verbatim from a named source: the material,
+   or the prior file's **observed** copy. Every asserted **behaviour** traces to
+   one too: a DR section, or — when it differs from the DR — a SPEC-DIFF whose
+   evidence names the prior source it came from (prior file, `--prior` file,
+   knowledge-store entry). Behaviour no source defines is marked `[INFERRED]` or
+   `[ASSUMPTION]` on its own comment line — never silently decided.
 3. **Observed copy bugs are asserted verbatim; document typos are not.** A typo
    someone **saw in the product** (prior file SPEC-DIFF, LIVE VERIFICATION,
    copy-bug note) is asserted exactly as seen, with a note. A typo that exists
@@ -292,6 +295,17 @@ header's coverage summary line must match these counts.
      appear in quotes, nor as a literal display value;
    - every `@blocked` has a `# [BACKEND]` line naming who and what; anything a
      tester can reach alone is re-tagged MANUAL;
+   - **no contradictory assertions** — no two scenarios or Outline rows expect
+     different outcomes for the same input and state (e.g. "the field stops at 9
+     digits" vs a row that types 10 digits and expects an error). When the source
+     does not say which happens, it is one `OQ-xx`, not both assertions;
+   - **thresholds cross-checked** — for each scenario, walk its `Given` state and
+     `When` action against every cap and limit the source defines (attempts,
+     rate limits, timers). If the action crosses one (a third wrong code after
+     two), the expected result is **that** rule's outcome (the lockout), and the
+     scenario is `[LIMIT]` when it triggers a lockout;
+   - **every behaviour differing from the DR has a SPEC-DIFF** naming its prior
+     source — check each `Then`/`And` that contradicts a DR statement;
 5. Triage counts with grep — BLOCKED = blocked/not-implemented tags; MANUAL =
    visual/a11y/manual tags; AUTOMATABLE = the rest. The triage block and its
    reconciliation line must agree, and every `@blocked` must name what someone
@@ -336,6 +350,7 @@ Not UI-observable (no scenario): <rule — why>, … | none
 Owned elsewhere (boundary only): <behaviour → file>, … | none
 Carried forward from prior file: <SPEC-DIFFs / copy bugs> | none
 Prior-vs-document conflicts raised as OQs: <OQ-xx …> | none
+Behaviour that differs from the DR: <assertion → SPEC-DIFF n (source)> | none
 Settled edge cases applied: <each one → how> | none in the context file
 Routing tags: <from last committed version <commit>: @area @screen… | from the context file rule (no committed version) | changed: old → new, because …>
 Prior sources read: <working copy @ commit; git history (n commits); --prior files; knowledge store entries> — copies outside these are not included

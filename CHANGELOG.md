@@ -2,6 +2,30 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.6.0] - 2026-10-08
+
+Driven by checking the 0.5.0 output against the DR and PROJECT.md: it passed
+every mechanical check but had three wrong assertions and five mis-triaged
+scenarios. **No change to the importable output**; `TEMPLATE.feature` untouched.
+
+### Added
+
+- **P13 — settled edge cases are machine-checked.** `tagRules.settledEdgeCases`
+  lists rules of the form "a scenario mentioning X is never tagged Y"; `init`
+  derives them from PROJECT.md §6. The 0.5.0 output tagged both airplane-mode
+  scenarios `@manual` — the third run to miss "airplane mode is not a gate".
+
+### Changed
+
+- `tc-agent` final checks, mirrored in `review-tc`:
+  - **No contradictory assertions** — 0.5.0 asserted both "the field stops at 9
+    digits" and an inline error after typing 10. Unknown outcome = one OQ.
+  - **Thresholds cross-checked** — 0.5.0 entered a third wrong code and
+    expected "no attempts remain" instead of the 15-minute lockout.
+  - **Behaviour needs a source** — 0.5.0 asserted the resend countdown (right,
+    per a teammate's observation) with no SPEC-DIFF saying where it came from.
+- The report lists every behaviour that differs from the DR with its SPEC-DIFF.
+
 ## [0.5.0] - 2026-10-07
 
 Driven by the fourth review. The 0.4.0 output was the first to pass every C4K

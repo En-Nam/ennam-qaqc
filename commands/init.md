@@ -116,7 +116,12 @@ template's Tag legend): the tags per slot → `direction`, `checkType`, `gates`,
 the triage mapping (which gates mean BLOCKED, which mean MANUAL — PROJECT.md
 §6.4 or the template's convertibility block) → `triage`
 (e.g. `{"blocked": ["@blocked", "@not-implemented"], "manual": ["@ui", "@a11y", "@manual"]}`).
-Leave out a slot the sources do not list. Never add a tag that appears only in
+Settled edge cases (PROJECT.md §6) that read as "a scenario mentioning X is
+never tagged Y" → `settledEdgeCases`: `{"when": "<regex for X>", "notTags":
+[<Y tags>], "why": "<section + the rule>"}`. Keep the regex to the words the
+rule uses (e.g. `airplane mode|no internet connection|offline`). A settled call
+that does not fit that shape stays prose for the agent. Leave out a slot the
+sources do not list. Never add a tag that appears only in
 an existing `.feature` file — files show usage, not the vocabulary.
 
 Show the result with the source line of each rule, e.g.

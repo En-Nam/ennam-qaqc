@@ -53,6 +53,16 @@
         "@a11y",
         "@manual"
       ]
-    }
+    },
+    "settledEdgeCases": [
+      {
+        "when": "airplane mode|no internet connection|offline",
+        "notTags": [
+          "@manual",
+          "@blocked"
+        ],
+        "why": "PROJECT.md §6.3 - airplane mode is not a gate"
+      }
+    ]
   }
 }

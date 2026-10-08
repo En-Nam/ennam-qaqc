@@ -603,3 +603,14 @@ Findings from comparing plugin output with a hand-written file. They sharpen
 - **A disputed string is never quoted** anywhere in the steps.
 - **One case id** on the `# Feature:` line; older ids go in `Source:`.
 
+### 0.6.0 additions
+
+- **Settled edge cases are machine-checked** where they read "a scenario
+  mentioning X is never tagged Y" (`tagRules.settledEdgeCases`, P13).
+- **Never assert both outcomes.** Two scenarios that cannot both pass are one
+  open question.
+- **Walk every scenario against the caps.** If its state and action cross a
+  limit another rule defines, the expected result is that limit's outcome.
+- **Behaviour needs a source too.** An assertion that contradicts the DR needs a
+  SPEC-DIFF naming where the behaviour was observed.
+

@@ -38,7 +38,14 @@ may be absent or `null`.
     "triage": {
       "blocked": ["@blocked", "@not-implemented"],
       "manual": ["@ui", "@a11y", "@manual"]
-    }
+    },
+    "settledEdgeCases": [
+      {
+        "when": "airplane mode|no internet connection|offline",
+        "notTags": ["@manual", "@blocked"],
+        "why": "PROJECT.md §6.3 - airplane mode is not a gate"
+      }
+    ]
   }
 }
 ```
@@ -73,6 +80,12 @@ header's triage line against the tags (P12):
 ```
 
 The line is a header comment — the importer never reads it.
+
+**`tagRules.settledEdgeCases`** turns the context file's settled tagging calls
+into checks (P13): a scenario whose title or steps match `when` (a
+case-insensitive regular expression) must not carry any tag in `notTags`; the
+failure message quotes `why`. Only calls that can be phrased as "a scenario
+mentioning X is never gated Y" belong here — the rest stay prose.
 
 **The template's `IMPORT RULES` comment** is checked too (P11, a failure):
 whenever a `qaqc.json` is found, the comment block starting `# IMPORT RULES` in

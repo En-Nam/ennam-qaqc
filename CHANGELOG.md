@@ -2,6 +2,27 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.7.0] - 2026-10-08
+
+### Added
+
+- **`/ennam-qaqc:conform`** — upgrade existing `.feature` files (a teammate's
+  own format, legacy `Scenario -` files) to the plugin's format and rules, in
+  place. Plugin rules now apply to legacy files too.
+  - **Phase A — `scripts/conform_feature.py`**: mechanical, meaning-preserving
+    changes C1–C9 (keyword colons, tag-line text to comments, Feature tags onto
+    every scenario, Feature description to comments, Background inlined, tag
+    order, title prefix, IMPORT RULES comment, triage line). Dry run by
+    default; a safety check (same scenarios, titles, steps) gates every write.
+    On two real legacy files: 223 → 47 and 203 → 44 FAIL, scenario counts
+    unchanged; what remains needs judgment.
+  - **Phase B — `tc-agent` upgrade mode**: header to the template, re-triage,
+    tag vocabulary, open questions, coverage against the source spec (adding
+    missing scenarios when the spec is available); every scenario change listed
+    with the rule that required it.
+  - Requires the files to be committed (git is the undo); never commits, stashes
+    or resets. `--format-only` stops after Phase A.
+
 ## [0.6.0] - 2026-10-08
 
 Driven by checking the 0.5.0 output against the DR and PROJECT.md: it passed

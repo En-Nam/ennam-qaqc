@@ -614,3 +614,10 @@ Findings from comparing plugin output with a hand-written file. They sharpen
 - **Behaviour needs a source too.** An assertion that contradicts the DR needs a
   SPEC-DIFF naming where the behaviour was observed.
 
+### 0.7.0 additions
+
+- **Plugin rules apply to every file, legacy ones included.** An existing file in
+  another format is upgraded with `/ennam-qaqc:conform` (mechanical import fixes,
+  then a full upgrade that keeps each scenario's intent and lists every change),
+  not left as an exception.
+

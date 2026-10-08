@@ -17,7 +17,7 @@ material in your prompt.
 
 | Key | Meaning |
 |---|---|
-| `Mode` | `create`, `update` or `preview` (see Modes) |
+| `Mode` | `create`, `update`, `preview` or `upgrade` (see Modes) |
 | `Target file` | the `.feature` path to write or update |
 | `Case id` | id for the `# Feature:` line, or `<TODO>` |
 | `Area folder` / `Area tag` / `Screen tag` | placement and routing tags (derive per the context file when not given) |
@@ -322,6 +322,31 @@ header's coverage summary line must match these counts.
   scenario without listing it in the report.
 - **preview** — write nothing. Report the scenarios that would be added /
   changed / removed (title, tags, requirement), then stop.
+- **upgrade** — called by `/ennam-qaqc:conform` on an existing file (often a
+  teammate's, often legacy) that `conform_feature.py` has already converted
+  mechanically. The target file is both the starting point and the main
+  material; the source spec, when given, is checked against it.
+  - **Keep, don't re-author.** Every scenario keeps its intent and its steps'
+    wording unless a rule in this file requires a change. Never undo the
+    mechanical changes (keyword colons, lifted tags, comments, IMPORT RULES,
+    triage line).
+  - **Bring the header to the template**: every template block in order, the
+    file's existing header content moved into the matching block, statements
+    the plugin's rules now override removed (e.g. "legacy dash naming is
+    grandfathered").
+  - **Apply every rule**: tags from the vocabulary only, one direction + one
+    check type, routing tags per CONTEXT_RESOLUTION.md §7; re-triage by §8;
+    split mixed-triage scenarios; scenarios with no `When` or `Then` completed
+    from their own intent; unobservable scenarios moved to COVERAGE as
+    `NOT UI-OBSERVABLE`; contradictions and disputed strings turned into
+    `OQ-xx`; SPEC-DIFFs kept and evidenced.
+  - **Coverage**: build the COVERAGE block. With a source spec, map its full
+    inventory and **add** scenarios for what is missing, marked as added;
+    without one, map the file's own traceability comments and list what cannot
+    be checked.
+  - **Account for every change**: the Prior scenarios table lists every
+    original scenario as kept / reworded / split / merged / moved to COVERAGE /
+    dropped, and every added scenario, each with the rule that required it.
 
 ## NEEDS_INPUT (Rule 7 cases only)
 
@@ -335,7 +360,7 @@ Why: <what is missing and why it cannot be derived>
 ## Final Report — always this shape
 
 ```
-## Test cases — <created | updated | preview>
+## Test cases — <created | updated | preview | upgraded>
 File      : <path>
 Case id   : <id>
 Sources   : <each source + version/date; prior file if read>

@@ -19,7 +19,8 @@ doc owns running them, and which wins on conflict?
 ## 3. Where test cases live, and in what format
 Path pattern · areas/folders · skeleton file · where the case id goes and its
 format · scenario naming convention · parameterised-scenario syntax · whether
-shared setup blocks (`Background:`) are used · how a new file is placed and
+shared setup blocks (`Background:`) are used · legacy files (the plugin's rules
+apply to them too — `/ennam-qaqc:conform` upgrades them) · how a new file is placed and
 named · how steps are written (Given / When / Then style, copy quoting,
 seeding sentences, fixtures).
 

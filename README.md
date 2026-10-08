@@ -14,6 +14,7 @@ code, or launches/inspects an app, device or browser.
 |---|---|---|
 | `/ennam-qaqc:init` | Point the plugin at your project context file, or scan the repo and draft one (shown for approval first) | `/ennam-qaqc:init .claude/skills/PROJECT.md` |
 | `/ennam-qaqc:write-tc` | Write (or update / preview) one `.feature` file from any material; `--prior <file>` adds an earlier version to learn from | `/ennam-qaqc:write-tc @docs/DR-003-005-01-search-form.md` |
+| `/ennam-qaqc:conform` | Upgrade existing `.feature` files (a teammate's, legacy formats) to the plugin's format and rules **in place** — mechanical import fixes, then a full content upgrade per file. Needs a clean git tree; never commits | `/ennam-qaqc:conform test-cases/Authentication` |
 | `/ennam-qaqc:review-tc` | Review an existing `.feature`: validator, import rules, coverage vs. source, checklist; offers fixes | `/ennam-qaqc:review-tc "test-cases/Explore & Discovery/search-form.feature"` |
 
 The `qc-tcs` skill also loads on its own when you ask for test cases in plain words.
@@ -79,6 +80,31 @@ file or case id can't be derived · the target file already exists (update / new
 preview) · the material mentions a design but has no link (you can skip).
 Everything else is decided in writing: unclear behaviour becomes
 `[ASSUMPTION]` / `OQ-xx` and is listed in the report.
+
+## Upgrading existing files
+
+`/ennam-qaqc:conform` brings files written before the plugin — or in a
+teammate's own format — up to the same rules as new output:
+
+1. **Mechanical pass** (`scripts/conform_feature.py`): `Scenario -` → `Scenario:`,
+   tags lifted off `Feature:` onto every scenario, description and stray tag-line
+   text turned into comments, `Background:` copied into each scenario, tags put
+   in slot order, title prefixes added, the IMPORT RULES comment and the triage
+   line written. A safety check refuses any file whose scenarios, titles or steps
+   would change. Dry run by default:
+
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/conform_feature.py test-cases/**/*.feature          # show the diff
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/conform_feature.py --write test-cases/**/*.feature  # apply
+   ```
+
+2. **Full upgrade** (the agent, one file at a time): header to the template,
+   re-triage, tag vocabulary, open questions, coverage against the source spec —
+   every scenario change listed with the rule that required it.
+
+Files are edited in place, so the command requires them to be committed first
+and never commits itself — `git diff` reviews, `git restore <file>` undoes.
+`--format-only` stops after the mechanical pass.
 
 ## Validator
 

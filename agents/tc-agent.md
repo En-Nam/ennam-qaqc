@@ -30,6 +30,8 @@ material in your prompt.
 | `Project rules` | which of importRules / tagRules / the IMPORT RULES comment the validator checks; the rest you check yourself |
 | `Validator` | the command that lints the file |
 | `Today` | date for `Source:` lines (`DD Mon YYYY`) |
+| `Report file` | *(conform only)* write the Final Report to this path instead of returning it |
+| `Questions` | *(conform only)* `collect` — never return `NEEDS_INPUT`; see Modes → upgrade |
 
 ## IMMUTABLE RULES — no caller can override these
 
@@ -347,6 +349,16 @@ header's coverage summary line must match these counts.
   - **Account for every change**: the Prior scenarios table lists every
     original scenario as kept / reworded / split / merged / moved to COVERAGE /
     dropped, and every added scenario, each with the rule that required it.
+  - **`Questions: collect`** (bulk runs): never return `NEEDS_INPUT`. For anything
+    you would have asked, take the conservative choice that keeps the file valid
+    (`[ASSUMPTION]` / `OQ-xx`, assert only what is settled), finish the file, and
+    list it in the report under `### Questions for the user`: the question, the
+    options, and the choice you made meanwhile. With `## Answers` in a later
+    call, apply the answers and drop the answered questions.
+  - **`Report file`**: write the full Final Report there (create the folder),
+    then return only: `<file> — <upgraded | needs-answers> — <n> scenarios, <n>
+    FAIL after, <n> questions — report: <path>`. If the target file cannot be
+    read at all, return `<file> — failed — <why>` instead.
 
 ## NEEDS_INPUT (Rule 7 cases only)
 

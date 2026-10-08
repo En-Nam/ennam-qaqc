@@ -2,6 +2,27 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.8.0] - 2026-10-08
+
+### Added — bulk conform
+
+- **Resumable runs** — `scripts/conform_state.py` keeps
+  `.claude/qaqc-conform/state.json`: each file's status (pending / formatted /
+  upgraded / needs-answers / skipped / failed) and a SHA-256 of conform's last
+  write. Its gate lets a file with uncommitted changes through only when conform
+  made them and nothing changed since, so an interrupted run continues instead
+  of blocking on its own edits.
+- **Reports on disk** — the agent writes each file's full report to
+  `.claude/qaqc-conform/reports/<path>.md` and returns one line; the chat shows
+  a single summary table.
+- **Two-step plan** — for more than 10 files the command recommends Phase A on
+  everything, a commit, then Phase B folder by folder.
+- **`--batch N`** — at most N files through Phase B per run.
+- **Collected questions** — agents run with `Questions: collect`: they take the
+  conservative choice, finish the file, and list the question; all questions
+  are asked once at the end and answered files are revised.
+- `--again` re-upgrades finished files.
+
 ## [0.7.0] - 2026-10-08
 
 ### Added

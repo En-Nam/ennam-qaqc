@@ -14,7 +14,7 @@ code, or launches/inspects an app, device or browser.
 |---|---|---|
 | `/ennam-qaqc:init` | Point the plugin at your project context file, or scan the repo and draft one (shown for approval first) | `/ennam-qaqc:init .claude/skills/PROJECT.md` |
 | `/ennam-qaqc:write-tc` | Write (or update / preview) one `.feature` file from any material; `--prior <file>` adds an earlier version to learn from | `/ennam-qaqc:write-tc @docs/DR-003-005-01-search-form.md` |
-| `/ennam-qaqc:conform` | Upgrade existing `.feature` files (a teammate's, legacy formats) to the plugin's format and rules **in place** — mechanical import fixes, then a full content upgrade per file. Needs a clean git tree; never commits | `/ennam-qaqc:conform test-cases/Authentication` |
+| `/ennam-qaqc:conform` | Upgrade existing `.feature` files (a teammate's, legacy formats) to the plugin's format and rules **in place**, in bulk and resumable — mechanical import fixes, then a full content upgrade per file. Never commits | `/ennam-qaqc:conform test-cases/ --batch 10` |
 | `/ennam-qaqc:review-tc` | Review an existing `.feature`: validator, import rules, coverage vs. source, checklist; offers fixes | `/ennam-qaqc:review-tc "test-cases/Explore & Discovery/search-form.feature"` |
 
 The `qc-tcs` skill also loads on its own when you ask for test cases in plain words.
@@ -104,7 +104,22 @@ teammate's own format — up to the same rules as new output:
 
 Files are edited in place, so the command requires them to be committed first
 and never commits itself — `git diff` reviews, `git restore <file>` undoes.
-`--format-only` stops after the mechanical pass.
+
+**Whole suites.** Run it on the whole test-cases folder; it is built for that:
+
+- **Resumable** — `.claude/qaqc-conform/state.json` records each file's status
+  and a hash of conform's last write. Re-run the same command to continue after
+  an interruption: finished files are skipped, and a file whose only
+  uncommitted changes are conform's own passes the git check. Any other
+  uncommitted edit still blocks that file.
+- **Reports on disk** — one full report per file in
+  `.claude/qaqc-conform/reports/`; the chat shows one summary table.
+- **Two-step** — for big suites it recommends: `--format-only` on everything,
+  commit, then the full upgrade folder by folder.
+- **`--batch N`** — upgrade at most N files this run; the rest wait for the next.
+- **Questions at the end** — agents never stop the run; each takes the safe
+  choice, notes the question, and you answer all of them together at the end.
+- `--again` re-upgrades files already marked done.
 
 ## Validator
 

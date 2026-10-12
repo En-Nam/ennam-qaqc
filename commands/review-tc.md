@@ -25,9 +25,12 @@ versions of the target as well: every `--prior` file,
    `.claude/qaqc.json`); each WARN a Warning, except **G16** (a step not
    observable in the product), which is Critical. P11 means the template's
    `IMPORT RULES` comment was not copied verbatim.
-2. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py` — every S-FAIL is
-   Critical (duplicate case id, reused or renumbered scenario id); S6 retired ids
-   are listed for the reviewer.
+2. `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py` (add
+   `--config <the qaqc.json path used above>` when a non-default config is in use)
+   — an S-FAIL that names the reviewed file is Critical (duplicate case id (S1),
+   case id with no DR (S2), `next` went down (S3), retired id reused (S4),
+   renumbered scenario (S5)); S-FAILs naming other files are reported, not
+   scored. S6 retired ids are listed for the reviewer.
 3. Project rules (context §3, §6, §13 — or template IMPORT RULES + defaults):
    whatever the validator did not check (no `importRules` / `tagRules` in
    `qaqc.json`); the context file's settled edge cases (§6) applied; triage block

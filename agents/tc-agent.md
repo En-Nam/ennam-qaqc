@@ -279,8 +279,10 @@ header's coverage summary line must match these counts.
 1. Run `<Validator> "<target file>"`. Fix every FAIL and re-run until 0 FAIL.
    Every WARN is fixed or explained in the report — a G16 means a scenario breaks
    Rule 4 and must go; a P11 means the `IMPORT RULES` comment was not copied
-   verbatim. Then run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py`;
-   fix every S-FAIL (a reused, renumbered or duplicate id).
+   verbatim. Then run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py`
+   (add `--config <the same qaqc.json path>` when a non-default config is in use);
+   fix every S-FAIL that names the target file (a reused, renumbered or duplicate
+   id). An S-FAIL naming another file is reported, not fixed.
 2. Whatever `Project rules` says is *not machine-checked*, check yourself:
    import rules (context §13, else the template's `IMPORT RULES` block); tag
    vocabulary, slot order, one direction + one check type, area + screen tags,

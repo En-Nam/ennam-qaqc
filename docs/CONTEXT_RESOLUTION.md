@@ -29,7 +29,7 @@ may be absent or `null`.
     "maxTagLength": 100
   },
   "caseIds": {
-    "pattern": "^DR-(?P<code>[A-Z]{2,4})-\\d{3}-\\d{3}-\\d{2}$",
+    "pattern": "^DR-(?P<code>[A-Z0-9]{2,8})-\\d{3}-\\d{3}-\\d{2}$",
     "registry": ".claude/dr-platforms.json",
     "drSources": "docs/PLATFORMS/**/details/DR-*.md"
   },
@@ -82,7 +82,9 @@ P15 and P16 (§9).
 **`caseIds`** is the case-id rule: `pattern` is a regex with a named group
 `(?P<code>…)` for the platform code, `registry` is the file listing the valid codes
 (default `.claude/dr-platforms.json`, shared with ennam-ba), and `drSources` is an
-optional glob of DR files. Checked by P14 in each file and by
+optional glob of DR files. The registry may be flat (`{"platformCodes": {"PLATFORM": "CODE"}}`)
+or nested (`{"projects": {"<P>": {"platforms": {"PLATFORM": "CODE"}}}}`, the union of all
+projects' codes). Checked by P14 in each file and by
 `validate_case_ids.py` S1/S2 across the suite — see §9.
 
 **`tagRules.triage`** maps gate tags to MANUAL and BLOCKED (first match wins:
@@ -276,3 +278,8 @@ Quoted outside the file, a file-local id carries the case id: `DR-PA-001-001-01 
 
 Checked by `validate_feature.py` (P14–P16, per file) and
 `validate_case_ids.py` (S1–S7, across the suite and against git HEAD).
+
+Limits: deleting a scenario and giving its id to a new scenario in the same uncommitted
+change cannot be told from a retitle (S4 only sees ids absent from HEAD), and a moved or
+renamed file loses its history comparison until it is committed; the rule "never reuse
+a retired id" covers both.

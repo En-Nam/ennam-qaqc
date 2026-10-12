@@ -126,9 +126,10 @@ an existing `.feature` file — files show usage, not the vocabulary.
 
 **Identifiers.** `caseIds.pattern` from the case-id format in PROJECT.md §3, with the
 platform-code segment as a named group `(?P<code>…)`. `caseIds.registry`: reuse
-`.claude/dr-platforms.json` when it exists (ennam-ba's registry); otherwise list the
-platforms the project names, **ask** for each code (2–4 uppercase letters, never derived
-from initials) and offer to create the file. `caseIds.drSources`: a glob for DR files if
+`.claude/dr-platforms.json` when it exists (ennam-ba's registry; init reads both shapes,
+flat `platformCodes` and nested `projects.<P>.platforms`); otherwise list the
+platforms the project names, **ask** for each code (uppercase letters and digits, as the registry already uses them,
+never derived from initials) and offer to create the file. `caseIds.drSources`: a glob for DR files if
 they live in this repo (e.g. `docs/PLATFORMS/**/details/DR-*.md`), else leave it out.
 `tagRules.scenarioId`: `{"prefix": "@TC-", "digits": 2}` unless the project defines another.
 

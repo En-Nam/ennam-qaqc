@@ -17,6 +17,9 @@ checked. The only change to importable output: one `@TC-NN` tag per scenario.
 - **`scripts/validate_case_ids.py`** (S1–S7): duplicate case ids across the suite,
   case ids without a DR (`caseIds.drSources`), and against git HEAD — `next` going
   down, retired ids reused, renumbered scenarios, retired ids listed.
+- The platform-code registry may be flat (`platformCodes`) or nested
+  (`projects.<P>.platforms`). Without `caseIds` in `qaqc.json`, `validate_case_ids.py`
+  checks nothing new.
 - **Conform** C10 assigns missing scenario ids; C11 migrates a legacy `DR-001-001-01`
   when the registry has one code.
 

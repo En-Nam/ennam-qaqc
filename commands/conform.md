@@ -111,8 +111,8 @@ plus `## Answers`), then `S mark <file> upgraded`.
 
 ## Step 8 — Report
 
-Run the validator on the run's files, `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py` (add its
-counts to the report), `S summary`, and `git diff --stat -- <files>`.
+Run the validator on the run's files, `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py` (add `--config <path>`
+when a non-default config is in use; add its counts to the report), `S summary`, and `git diff --stat -- <files>`.
 Show only the summary — the full per-file reports stay on disk:
 
 ```

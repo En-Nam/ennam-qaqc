@@ -29,9 +29,9 @@ option 1 → use the path; option 2 → tell the user to run `/ennam-qaqc:init`,
 stop; option 3 → `Context file: none (plugin defaults)`.
 
 Project rules: from `.claude/qaqc.json` →
-`Project rules: machine-checked — importRules (<keys>), tagRules (<slots>), IMPORT RULES comment`.
+`Project rules: machine-checked — importRules (<keys>), tagRules (<slots>), caseIds, IMPORT RULES comment`.
 Name whichever of the three is missing as `not machine-checked — check it
-yourself`. If `importRules` or `tagRules` is missing, add one line to the relay
+yourself`. If `importRules`, `tagRules`, `caseIds` or `tagRules.scenarioId` is missing, add one line to the relay
 in Step 8: "Tip: run `/ennam-qaqc:init` → refresh rules, so the validator
 enforces them." (No question — this is not a gate.)
 

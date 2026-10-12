@@ -75,7 +75,15 @@ exactly one `direction` and one `checkType` tag, at most one `platform` tag,
 tags in slot order (direction → check type → gates → platform → area →
 screen), exactly one `area` tag followed by one screen tag (any other tag), and
 the title prefix that `titlePrefix` maps the direction tag to. A slot list that
-is absent is not checked.
+is absent is not checked. `tagRules.scenarioId` (`{"prefix": "@TC-", "digits": 2}`)
+makes the scenario id the **last** slot, after the screen tag; it is checked by
+P15 and P16 (§9).
+
+**`caseIds`** is the case-id rule: `pattern` is a regex with a named group
+`(?P<code>…)` for the platform code, `registry` is the file listing the valid codes
+(default `.claude/dr-platforms.json`, shared with ennam-ba), and `drSources` is an
+optional glob of DR files. Checked by P14 in each file and by
+`validate_case_ids.py` S1/S2 across the suite — see §9.
 
 **`tagRules.triage`** maps gate tags to MANUAL and BLOCKED (first match wins:
 blocked, then manual, else automatable). With it, the validator checks the

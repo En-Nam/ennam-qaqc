@@ -148,14 +148,15 @@ Resolve the template (CONTEXT_RESOLUTION.md §3) and the root (§4), then write
   "template": "<template path, or null for the plugin default>",
   "testCasesRoot": "<root>",
   "importRules": { "<key>": "<value from Step 6>" },
-  "tagRules": { "<slot>": ["<tags from Step 6>"] }
+  "tagRules": { "<slot>": ["<tags from Step 6>"], "scenarioId": { "prefix": "@TC-", "digits": 2 } },
+  "caseIds": { "pattern": "<from Step 6>", "registry": "<registry path>", "drSources": "<glob — omit when DRs are not in this repo>" }
 }
 ```
 
 Then prove the rules load:
 `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py <any existing .feature under the root>`
 — the output must start with `import rules: .claude/qaqc.json (importRules,
-tagRules, IMPORT RULES comment)`. Existing files that now FAIL are reported (not
+tagRules, IMPORT RULES comment, caseIds)`. Existing files that now FAIL are reported (not
 fixed) in Step 8.
 
 ## Step 8 — Report

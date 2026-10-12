@@ -63,6 +63,10 @@ From the context file's placement rule (PROJECT.md §3) or the defaults
 (CONTEXT_RESOLUTION.md §5): area folder, file name, case id, area tag, screen
 tag. `--out` wins for the path. The case id comes from the material (DR
 `detail_id`, story id, …) in the context file's format.
+With `caseIds` set, the path carries the ids (CONTEXT_RESOLUTION.md §9): file
+`<case id>-<name>.feature`, area folder `EP-<code>-<epic>-<Area>` — use the area's
+existing folder whatever its name (with or without the id) and never rename it here;
+`/ennam-qaqc:conform` does that. The screen and area tags never include the ids.
 Check it against `caseIds.pattern` and the registry codes. An unregistered platform
 code → ask for the code and offer to add it to the registry; never derive one. A case
 id another `.feature` already carries is the Step 5 gate.

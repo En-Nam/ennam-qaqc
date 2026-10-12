@@ -76,6 +76,8 @@ Then for each file:
 
 Phase A also assigns missing scenario ids (C10) and migrates a legacy `DR-001-001-01`
 case id when the registry has one code (C11); any other case id is left for Phase B.
+Files and folders get their ids in their names at the end of the run (Step 8), once
+Phase B has settled the case ids.
 
 `--format-only` → go to Step 8.
 
@@ -91,7 +93,8 @@ parallel):
   `/ennam-qaqc:write-tc` Step 6, using:
   - `Mode: upgrade`
   - `Target file: <path>`
-  - `Prior file: git HEAD:<path> (the version before this run)`
+  - `Prior file: git HEAD:<path> (the version before this run)` — for a path renamed by an
+    earlier run, the HEAD path from `git diff -M --name-status HEAD`
   - `Design: <the file's own Figma line, or none mentioned>` — never ask
   - `Report file: .claude/qaqc-conform/reports/<path>.md`
   - `Questions: collect`
@@ -109,7 +112,15 @@ The user answers in one reply (unanswered = keep the agent's choice). For each
 file with answers, dispatch the agent again (`Mode: upgrade`, same context,
 plus `## Answers`), then `S mark <file> upgraded`.
 
-## Step 8 — Report
+## Step 8 — Ids in names, then report
+
+**Names** (only with `caseIds` set, CONTEXT_RESOLUTION.md §9): run
+`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/name_by_id.py --write <the run's files>` (add
+`--config <path>` when a non-default config is in use). It renames each file with one
+valid case id to `<case id>-<name>.feature` and each area folder to
+`EP-<code>-<epic>-<name>`, with `git mv` for tracked paths, and moves the run's state and
+reports along. Use the new paths from here on. Files it keeps (no case id, or a folder
+whose files name different epics) are listed in the report under **Names kept**.
 
 Run the validator on the run's files, `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py` (add `--config <path>`
 when a non-default config is in use; add its counts to the report), `S summary`, and `git diff --stat -- <files>`.
@@ -120,8 +131,10 @@ Show only the summary — the full per-file reports stay on disk:
 | File | Status | Scenarios before → after | FAIL before → after | Triage | Report |
 | <path> | upgraded | 39 → 41 | 223 → 0 | 22 / 19 / 0 | .claude/qaqc-conform/reports/<path>.md |
 
+Renamed: <n> files, <n> folders (git diff -M --stat HEAD shows them) · Names kept: <path> - <reason>
+
 Still to do: <n> formatted (run /ennam-qaqc:conform again to continue) · <n> skipped · <n> failed
-Review: git diff -- <path>     Undo one file: git restore <path>     Nothing has been committed.
+Review: git diff HEAD -M --stat -- <root>     Undo one file: git restore --staged --worktree <path> (renamed: git mv <new> <old> first)     Nothing has been committed.
 ```
 
 After the user commits, the gate sees those files as `clean` and their status

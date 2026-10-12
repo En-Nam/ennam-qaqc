@@ -132,6 +132,10 @@ platforms the project names, **ask** for each code (uppercase letters and digits
 never derived from initials) and offer to create the file. `caseIds.drSources`: a glob for DR files if
 they live in this repo (e.g. `docs/PLATFORMS/**/details/DR-*.md`), else leave it out.
 `tagRules.scenarioId`: `{"prefix": "@TC-", "digits": 2}` unless the project defines another.
+With `caseIds` set, file and area-folder names carry the ids (CONTEXT_RESOLUTION.md §9).
+The epic comes from a `(?P<epic>…)` group in the pattern, else from the
+`DR-<CODE>-<EPIC>-<US>-<NN>` shape; a project that does not want ids in its paths gets
+`"names": false` in `caseIds` — ask only if the context file names files another way.
 
 Show the result with the source line of each rule, e.g.
 `featureTags: false  ← CLAUDE.md "Import compatibility" rule 3`,

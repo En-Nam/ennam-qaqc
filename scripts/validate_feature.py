@@ -47,7 +47,7 @@ Import rules (only when importRules sets them):
 
 Tag rules (only when tagRules is set):
   P7  FAIL not exactly one direction / one check-type tag, or two platform tags
-  P8  FAIL tags out of slot order: direction, check type, gates, platform, area, screen
+  P8  FAIL tags out of slot order: direction, check type, gates, platform, area, screen, scenario id
   P9  FAIL routing tags are not exactly one area tag (from `area`) then one screen tag
   P10 FAIL title prefix disagrees with the direction tag (titlePrefix)
 
@@ -64,6 +64,12 @@ Settled edge cases (only when tagRules.settledEdgeCases is set):
            its `notTags` (e.g. airplane mode is not a gate -> no @manual / @blocked)
   P13 WARN a rule whose `when` is not a valid regular expression
 
+Identifiers (only when qaqc.json sets caseIds / tagRules.scenarioId):
+  P14 FAIL the case id on '# Feature: <name>  (<id>)' is malformed, not one id, or its code is
+           not in the registry (caseIds.pattern, caseIds.registry);  WARN when missing / <TODO>
+  P15 FAIL a scenario without exactly one scenario id tag (@TC-NN), a duplicate id, or an id on Examples
+  P16 FAIL '# Scenario IDs: next @TC-NN' not above every id in use;  WARN when the line is missing
+
 Python 3.7+, standard library only.
 """
 
@@ -79,6 +85,8 @@ MISSING_COLON_RE = re.compile(r"^(Feature|Background|Rule|Scenario Outline|Scena
 STEP_RE = re.compile(r"^(Given|When|Then|And|But|\*)\s+(\S.*)$")
 TAG_RE = re.compile(r"^@[^\s@#]+$")
 PLACEHOLDER_RE = re.compile(r"<([^<>]+)>")
+CASE_ID_LINE_RE = re.compile(r"^#\s*Feature:.*\(([^()]*)\)\s*$")
+NEXT_ID_LINE_RE = re.compile(r"^#\s*Scenario IDs:\s*next\s+(@\S+)", re.IGNORECASE)
 TRIAGE_LINE_RE = re.compile(
     r"^#\s*Triage:\s*(\d+)\s+automatable\s*/\s*(\d+)\s+manual\s*/\s*(\d+)\s+blocked\s*\((\d+)\s+scenarios?\)",
     re.IGNORECASE)
@@ -128,6 +136,11 @@ class Facts:
     background_lines: List[int] = field(default_factory=list)
     rule_lines: List[int] = field(default_factory=list)
     tags: List[Tuple[int, str]] = field(default_factory=list)
+    case_id: Optional[str] = None
+    case_id_line: Optional[int] = None
+    next_id: Optional[str] = None
+    next_id_line: Optional[int] = None
+    examples_tags: List[Tuple[int, str]] = field(default_factory=list)
 
 
 def split_row(text):
@@ -144,9 +157,10 @@ def _short(title):
     return title if len(title) <= 60 else title[:57] + "..."
 
 
-def validate(text, rules=None, tag_rules=None, import_comment=None):
+def validate(text, rules=None, tag_rules=None, import_comment=None, case_rules=None):
     """Lint `text`. `rules` / `tag_rules` are importRules / tagRules from .claude/qaqc.json;
-    `import_comment` is the template's IMPORT RULES comment lines. Each may be None."""
+    `import_comment` is the template's IMPORT RULES comment lines; `case_rules` is caseIds
+    (with "codes" filled from the registry). Each may be None."""
     findings = []
 
     def add(code, severity, line, message):
@@ -175,6 +189,8 @@ def validate(text, rules=None, tag_rules=None, import_comment=None):
             docstring = line[:3]
             continue
         if not line or line.startswith("#"):
+            if block is None:
+                _header_comment(line, no, facts)
             continue
 
         if line.startswith("@"):
@@ -216,6 +232,7 @@ def validate(text, rules=None, tag_rules=None, import_comment=None):
                 if " #" in rest:
                     add("G12", "WARN", no, "title contains ' #'; a trailing comment becomes part of the title")
             else:  # Examples
+                facts.examples_tags.extend(scenario_tags)
                 if current is None or not current.outline or block not in ("scenario", "examples"):
                     add("G7", "FAIL", no, "Examples: outside a Scenario Outline")
                     block = "orphan"
@@ -284,6 +301,11 @@ def validate(text, rules=None, tag_rules=None, import_comment=None):
             _check_triage_line(text, tag_rules["triage"], scenarios, feature_lines[0] if feature_lines else 1, add)
     if import_comment and feature_lines:
         _check_import_comment(text, import_comment, feature_lines[0], add)
+    feature_line = feature_lines[0] if feature_lines else 1
+    if case_rules:
+        _check_case_id(case_rules, facts, feature_line, add)
+    if tag_rules and isinstance(tag_rules.get("scenarioId"), dict):
+        _check_scenario_ids(tag_rules["scenarioId"], facts, scenarios, feature_line, add)
 
     findings.sort(key=lambda f: (f.line, f.code))
     return findings
@@ -374,19 +396,22 @@ def _check_import_rules(rules, facts, scenarios, add):
                     % (_short(tag), len(tag), max_tag))
 
 
-SLOT_ORDER = ("direction", "checkType", "gates", "platform", "routing")
+SLOT_ORDER = ("direction", "checkType", "gates", "platform", "routing", "id")
+TAG_SLOTS = SLOT_ORDER[:4]
 
 
 def _check_tag_rules(tag_rules, scenarios, add):
-    slots = {name: set(tag_rules[name]) for name in SLOT_ORDER[:-1] if isinstance(tag_rules.get(name), list)}
+    slots = {name: set(tag_rules[name]) for name in TAG_SLOTS if isinstance(tag_rules.get(name), list)}
     if not slots:
         return
+    id_re = scenario_id_re(tag_rules["scenarioId"]) if isinstance(tag_rules.get("scenarioId"), dict) else None
     areas = set(tag_rules["area"]) if isinstance(tag_rules.get("area"), list) else None
     prefixes = tag_rules.get("titlePrefix") if isinstance(tag_rules.get("titlePrefix"), dict) else {}
     for sc in scenarios:
         line = sc.tags[0][0] if sc.tags else sc.line
         tags = [tag for _, tag in sc.tags]
-        kinds = [next((name for name in SLOT_ORDER[:-1] if tag in slots.get(name, ())), "routing") for tag in tags]
+        kinds = ["id" if id_re and id_re.match(tag) else
+                 next((name for name in TAG_SLOTS if tag in slots.get(name, ())), "routing") for tag in tags]
         for slot, label in (("direction", "direction"), ("checkType", "check-type")):
             if slot in slots and kinds.count(slot) != 1:
                 add("P7", "FAIL", line, "scenario %r has %d %s tags; exactly one is required"
@@ -395,7 +420,7 @@ def _check_tag_rules(tag_rules, scenarios, add):
             add("P7", "FAIL", line, "scenario %r has %d platform tags; at most one" % (_short(sc.title), kinds.count("platform")))
         ranks = [SLOT_ORDER.index(kind) for kind in kinds]
         if ranks != sorted(ranks):
-            add("P8", "FAIL", line, "tags out of order (%s); order is direction, check type, gates, platform, area, screen"
+            add("P8", "FAIL", line, "tags out of order (%s); order is direction, check type, gates, platform, area, screen, scenario id"
                 % " ".join(tags))
         if areas is not None:
             routing = [tag for tag, kind in zip(tags, kinds) if kind == "routing"]
@@ -407,6 +432,123 @@ def _check_tag_rules(tag_rules, scenarios, add):
         prefix = prefixes.get(direction) if direction else None
         if isinstance(prefix, str) and not sc.title.startswith(prefix):
             add("P10", "FAIL", sc.line, "%s scenario title must start with %r" % (direction, prefix))
+
+
+def _id_spec(spec):
+    prefix = spec.get("prefix") if isinstance(spec.get("prefix"), str) else "@TC-"
+    digits = spec.get("digits") if isinstance(spec.get("digits"), int) and not isinstance(spec.get("digits"), bool) else 2
+    return prefix, digits
+
+
+def scenario_id_re(spec):
+    prefix, digits = _id_spec(spec or {})
+    return re.compile(r"^%s(\d{%d,})$" % (re.escape(prefix), digits))
+
+
+def format_scenario_id(spec, number):
+    prefix, digits = _id_spec(spec or {})
+    return prefix + str(number).zfill(digits)
+
+
+def _header_comment(line, no, facts):
+    case = CASE_ID_LINE_RE.match(line)
+    if case and facts.case_id_line is None:
+        facts.case_id, facts.case_id_line = case.group(1).strip(), no
+    nxt = NEXT_ID_LINE_RE.match(line)
+    if nxt and facts.next_id_line is None:
+        facts.next_id, facts.next_id_line = nxt.group(1), no
+
+
+def _check_case_id(case_rules, facts, feature_line, add):
+    value = facts.case_id
+    line = facts.case_id_line or feature_line
+    if not value or value.upper() in ("<TODO>", "TODO"):
+        add("P14", "WARN", line, "no case id on the '# Feature: <name>  (<case id>)' line")
+        return
+    if len(value.split()) > 1 or "," in value or ";" in value:
+        add("P14", "FAIL", line, "%r holds more than one id; the Feature line carries one case id "
+            "(older ids go on the Source: line)" % value)
+        return
+    pattern = case_rules.get("pattern")
+    if not isinstance(pattern, str):
+        return
+    try:
+        match = re.fullmatch(pattern, value)
+    except re.error as exc:
+        add("P14", "WARN", line, "caseIds.pattern %r is invalid (%s); case id not checked" % (pattern, exc))
+        return
+    if not match:
+        add("P14", "FAIL", line, "case id %r does not match the project format %s" % (value, pattern))
+        return
+    code = match.groupdict().get("code")
+    codes = case_rules.get("codes")
+    if code and isinstance(codes, list) and code not in codes:
+        add("P14", "FAIL", line, "case id %r uses platform code %r, not in the registry (%s); never invent a code"
+            % (value, code, ", ".join(codes) or "empty"))
+
+
+def _check_scenario_ids(spec, facts, scenarios, feature_line, add):
+    id_re = scenario_id_re(spec)
+    seen = {}
+    for sc in scenarios:
+        line = sc.tags[0][0] if sc.tags else sc.line
+        ids = [tag for _, tag in sc.tags if id_re.match(tag)]
+        if not ids:
+            add("P15", "FAIL", line, "scenario %r has no scenario id tag (%s)"
+                % (_short(sc.title), format_scenario_id(spec, 1).replace("01", "NN")))
+            continue
+        if len(ids) > 1:
+            add("P15", "FAIL", line, "scenario %r has %d scenario id tags; exactly one" % (_short(sc.title), len(ids)))
+        for tag in ids:
+            if tag in seen:
+                add("P15", "FAIL", line, "%s is also used on line %d; a scenario id is unique within the file"
+                    % (tag, seen[tag]))
+            else:
+                seen[tag] = line
+    for line, tag in facts.examples_tags:
+        if id_re.match(tag):
+            add("P15", "FAIL", line, "%s is on an Examples block; a Scenario Outline carries one id on its own tag line" % tag)
+    if not seen:
+        return
+    highest = max(int(id_re.match(tag).group(1)) for tag in seen)
+    if facts.next_id is None:
+        add("P16", "WARN", feature_line, "no '# Scenario IDs: next %s' line in the header"
+            % format_scenario_id(spec, highest + 1))
+        return
+    nxt = id_re.match(facts.next_id)
+    if not nxt or int(nxt.group(1)) <= highest:
+        add("P16", "FAIL", facts.next_id_line, "'next %s' must be above every id in use (highest %s); ids are never reused"
+            % (facts.next_id, format_scenario_id(spec, highest)))
+
+
+def identifiers(text, spec):
+    """Case id, next scenario-id number and [(scenario id number or None, title)] in file order."""
+    id_re = scenario_id_re(spec or {})
+    case_id = next_number = None
+    scenarios, pending, before_feature = [], [], True
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("#"):
+            if before_feature:
+                case = CASE_ID_LINE_RE.match(line)
+                if case and case_id is None:
+                    case_id = case.group(1).strip()
+                nxt = NEXT_ID_LINE_RE.match(line)
+                if nxt and next_number is None and id_re.match(nxt.group(1)):
+                    next_number = int(id_re.match(nxt.group(1)).group(1))
+            continue
+        if line.startswith("@"):
+            pending.extend(line.split())
+            continue
+        keyword = KEYWORD_RE.match(line)
+        if keyword:
+            if keyword.group(1) == "Feature":
+                before_feature = False
+            elif keyword.group(1) in ("Scenario", "Scenario Outline"):
+                ids = [int(id_re.match(tag).group(1)) for tag in pending if id_re.match(tag)]
+                scenarios.append((ids[0] if ids else None, keyword.group(2).strip()))
+            pending = []
+    return {"case_id": case_id, "next": next_number, "scenarios": scenarios}
 
 
 def _check_settled_edge_cases(rules, scenarios, feature_line, add):
@@ -498,6 +640,7 @@ class ProjectRules:
     tag_rules: Optional[dict] = None
     import_comment: Optional[List[str]] = None
     source: Optional[Path] = None
+    case_ids: Optional[dict] = None
     notes: List[str] = field(default_factory=list)
 
 
@@ -515,14 +658,26 @@ def load_project_rules(config_path):
         project.notes.append("%s is not a JSON object; project rules not checked" % config_path)
         return project
     project.source = Path(config_path)
+    repo_root = Path(config_path).resolve().parent.parent
     for key, attr in (("importRules", "import_rules"), ("tagRules", "tag_rules")):
         value = data.get(key)
         if isinstance(value, dict):
             setattr(project, attr, value)
         elif value is not None:
             project.notes.append("%s: %s is not an object; not checked" % (config_path, key))
+    case_ids = data.get("caseIds")
+    if isinstance(case_ids, dict):
+        project.case_ids = dict(case_ids)
+        registry = repo_root / (case_ids.get("registry") or ".claude/dr-platforms.json")
+        try:
+            codes = json.loads(registry.read_text(encoding="utf-8")).get("platformCodes")
+            project.case_ids["codes"] = sorted(set(codes.values())) if isinstance(codes, dict) else None
+        except (OSError, ValueError, AttributeError):
+            project.case_ids["codes"] = None
+            project.notes.append("platform-code registry %s not readable; case-id codes not checked" % registry)
+    elif case_ids is not None:
+        project.notes.append("%s: caseIds is not an object; not checked" % config_path)
     template = data.get("template")
-    repo_root = Path(config_path).resolve().parent.parent
     template_path = repo_root / template if isinstance(template, str) and template else PLUGIN_TEMPLATE
     try:
         project.import_comment = template_import_comment(template_path.read_text(encoding="utf-8"))
@@ -539,7 +694,7 @@ def rules_for(path, config=None):
 def validate_file(path, project=None):
     project = project or ProjectRules()
     return validate(Path(path).read_text(encoding="utf-8"),
-                    project.import_rules, project.tag_rules, project.import_comment)
+                    project.import_rules, project.tag_rules, project.import_comment, project.case_ids)
 
 
 def run_cli(paths, out, config=None):
@@ -550,7 +705,8 @@ def run_cli(paths, out, config=None):
             out.write("note: %s\n" % note)
         if project.source:
             checked = [name for name, value in (("importRules", project.import_rules), ("tagRules", project.tag_rules),
-                                                ("IMPORT RULES comment", project.import_comment)) if value]
+                                                ("IMPORT RULES comment", project.import_comment),
+                                                ("caseIds", project.case_ids)) if value]
             out.write("import rules: %s (%s)\n" % (project.source, ", ".join(checked) or "no project rules set"))
         findings = validate_file(path, project)
         for finding in findings:

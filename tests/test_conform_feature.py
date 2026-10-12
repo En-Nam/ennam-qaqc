@@ -204,5 +204,14 @@ class IdentifierConformTest(unittest.TestCase):
         self.assertIn("(DR-001-001-01)", result.text)
 
 
+class InvalidCaseIdPatternTest(unittest.TestCase):
+    def test_invalid_pattern_skips_c11(self):
+        project = vf.ProjectRules(tag_rules=ID_PROJECT.tag_rules,
+                                  case_ids={"pattern": "([", "codes": ["PA"]})
+        result = cf.conform(LEGACY_DR, project)
+        self.assertNotIn("C11", result.changes)
+        self.assertIn("(DR-001-001-01)", result.text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -192,8 +192,11 @@ def _migrate_case_id(lines, case_ids, changes):
     else:
         return lines
     old = match.group(1).strip()
-    if re.fullmatch(case_ids["pattern"], old):
-        return lines
+    try:
+        if re.fullmatch(case_ids["pattern"], old):
+            return lines
+    except re.error:
+        return lines  # invalid caseIds.pattern: the validator warns; nothing to migrate against
     legacy = re.fullmatch(r"DR-(\d{3}-\d{3}-\d{2})", old)
     codes = case_ids.get("codes") or []
     code = case_ids.get("defaultCode") or (codes[0] if len(codes) == 1 else None)

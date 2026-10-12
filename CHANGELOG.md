@@ -2,6 +2,29 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.9.0] - 2026-10-12
+
+ennam-ba's numbering rules, applied to test cases. **Re-run `/ennam-qaqc:init` →
+refresh rules** to get `caseIds` and `tagRules.scenarioId`; until then nothing new is
+checked. The only change to importable output: one `@TC-NN` tag per scenario.
+
+### Added
+
+- **Case ids** (P14): one per file, project format (`caseIds.pattern`), platform code
+  from the registry (`.claude/dr-platforms.json`, shared with ennam-ba); missing = warning.
+- **Scenario ids** (P15, P16): `@TC-NN` on every Scenario / Outline, last in the tag
+  line; header `# Scenario IDs: next @TC-NN`; never renumbered, retired ids never reused.
+- **`scripts/validate_case_ids.py`** (S1–S7): duplicate case ids across the suite,
+  case ids without a DR (`caseIds.drSources`), and against git HEAD — `next` going
+  down, retired ids reused, renumbered scenarios, retired ids listed.
+- **Conform** C10 assigns missing scenario ids; C11 migrates a legacy `DR-001-001-01`
+  when the registry has one code.
+
+### Changed
+
+- Rules numbered from prose are `RQ-xx` (was `BR-xxx`, which collided with ennam-ba's
+  `BR-US-XXX-NN`).
+
 ## [0.8.0] - 2026-10-08
 
 ### Added — bulk conform

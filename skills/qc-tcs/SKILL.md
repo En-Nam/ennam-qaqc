@@ -109,7 +109,7 @@ Extract:
 
 Converting an SME explanation: turn prose into a numbered rule first, *then*
 write scenarios from the rule. "If the centre doesn't support tours, the CTA
-falls back to Start Enquiry" becomes `BR-001` with two branches → two scenarios.
+falls back to Start Enquiry" becomes `RQ-01` with two branches → two scenarios.
 
 **Ambiguity is never silently resolved.** State the interpretations and ask:
 
@@ -621,3 +621,10 @@ Findings from comparing plugin output with a hand-written file. They sharpen
   then a full upgrade that keeps each scenario's intent and lists every change),
   not left as an exception.
 
+
+### 0.9.0 additions
+
+- **Identifiers follow ennam-ba's rules** (CONTEXT_RESOLUTION.md §9): one case id per file,
+  unique across the suite, its platform code from the registry; one `@TC-NN` per
+  scenario, never renumbered, retired ids never reused; `RQ-xx` for rules numbered
+  from prose.

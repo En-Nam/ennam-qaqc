@@ -74,6 +74,9 @@ Then for each file:
 - `SKIPPED - safety check failed` → `S mark <file> skipped --note "<reason>"`; it
   is left untouched and gets no Phase B.
 
+Phase A also assigns missing scenario ids (C10) and migrates a legacy `DR-001-001-01`
+case id when the registry has one code (C11); any other case id is left for Phase B.
+
 `--format-only` → go to Step 8.
 
 ## Step 6 — Phase B: full upgrade, one agent per file
@@ -108,7 +111,8 @@ plus `## Answers`), then `S mark <file> upgraded`.
 
 ## Step 8 — Report
 
-Run the validator on the run's files, `S summary`, and `git diff --stat -- <files>`.
+Run the validator on the run's files, `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py` (add its
+counts to the report), `S summary`, and `git diff --stat -- <files>`.
 Show only the summary — the full per-file reports stay on disk:
 
 ```

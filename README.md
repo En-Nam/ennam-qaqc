@@ -53,7 +53,7 @@ for the validator:
 Change rules in the context file, then re-run `/ennam-qaqc:init` → "refresh
 rules". Upgrading from an older version? Run that once — older pointers lack
 `importRules` (before 0.2.0), `tagRules` (before 0.3.0) or `tagRules.triage`
-(before 0.4.0) or `tagRules.settledEdgeCases` (before 0.6.0), and those rules
+(before 0.4.0) or `tagRules.settledEdgeCases` (before 0.6.0), or `caseIds` and `tagRules.scenarioId` (before 0.9.0), and those rules
 are not machine-checked until you do.
 
 **Earlier versions of a feature file** are read before anything is written — the
@@ -139,6 +139,7 @@ and never commits itself — `git diff` reviews, `git restore <file>` undoes.
 - **The header's triage totals** — `# Triage: A automatable / M manual / B blocked (N scenarios)`
   must match the tags (P12; a missing line is a warning). Header comments only:
   the importer never reads them, so the importable Gherkin is unchanged.
+- **Identifiers** (P14–P16 per file; `scripts/validate_case_ids.py` S1–S7 across the suite) — case id format and registry code, one `@TC-NN` per scenario, no reused or renumbered ids.
 - **Two warnings** — duplicate scenario titles (G15), and steps a tester cannot
   observe in the product, such as server-side inspection or delivery logs (G16).
 

@@ -124,6 +124,15 @@ that does not fit that shape stays prose for the agent. Leave out a slot the
 sources do not list. Never add a tag that appears only in
 an existing `.feature` file — files show usage, not the vocabulary.
 
+**Identifiers.** `caseIds.pattern` from the case-id format in PROJECT.md §3, with the
+platform-code segment as a named group `(?P<code>…)`. `caseIds.registry`: reuse
+`.claude/dr-platforms.json` when it exists (ennam-ba's registry; init reads both shapes,
+flat `platformCodes` and nested `projects.<P>.platforms`); otherwise list the
+platforms the project names, **ask** for each code (uppercase letters and digits, as the registry already uses them,
+never derived from initials) and offer to create the file. `caseIds.drSources`: a glob for DR files if
+they live in this repo (e.g. `docs/PLATFORMS/**/details/DR-*.md`), else leave it out.
+`tagRules.scenarioId`: `{"prefix": "@TC-", "digits": 2}` unless the project defines another.
+
 Show the result with the source line of each rule, e.g.
 `featureTags: false  ← CLAUDE.md "Import compatibility" rule 3`,
 `checkType: @logic @navigation @ui @a11y  ← PROJECT.md §6.1`. A rule the user
@@ -140,14 +149,15 @@ Resolve the template (CONTEXT_RESOLUTION.md §3) and the root (§4), then write
   "template": "<template path, or null for the plugin default>",
   "testCasesRoot": "<root>",
   "importRules": { "<key>": "<value from Step 6>" },
-  "tagRules": { "<slot>": ["<tags from Step 6>"] }
+  "tagRules": { "<slot>": ["<tags from Step 6>"], "scenarioId": { "prefix": "@TC-", "digits": 2 } },
+  "caseIds": { "pattern": "<from Step 6>", "registry": "<registry path>", "drSources": "<glob — omit when DRs are not in this repo>" }
 }
 ```
 
 Then prove the rules load:
 `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_feature.py <any existing .feature under the root>`
 — the output must start with `import rules: .claude/qaqc.json (importRules,
-tagRules, IMPORT RULES comment)`. Existing files that now FAIL are reported (not
+tagRules, IMPORT RULES comment, caseIds)`. Existing files that now FAIL are reported (not
 fixed) in Step 8.
 
 ## Step 8 — Report
@@ -159,6 +169,7 @@ ennam-qaqc initialised
   Test cases   : <root>
   Import rules : <n> machine-checked (<keys>) — from <source> | none stated
   Tag rules    : <slots> — from <source> | none stated
+  Identifiers  : caseIds <pattern> (registry <path>, codes <list>) · scenario ids <prefix>NN
   Existing files failing them: <n> (<file: codes>, …) | none
   Pointer      : .claude/qaqc.json
 Next: /ennam-qaqc:write-tc <what to write test cases for>

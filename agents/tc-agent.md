@@ -45,7 +45,9 @@ material in your prompt.
    one too: a DR section, or — when it differs from the DR — a SPEC-DIFF whose
    evidence names the prior source it came from (prior file, `--prior` file,
    knowledge-store entry). Behaviour no source defines is marked `[INFERRED]` or
-   `[ASSUMPTION]` on its own comment line — never silently decided.
+   `[ASSUMPTION]` on its own comment line — never silently decided. Never invent a
+   case id or platform code: the code must be in the registry; otherwise return
+   `NEEDS_INPUT` (or, with `Questions: collect`, leave `<TODO>` and list the question).
 3. **Observed copy bugs are asserted verbatim; document typos are not.** A typo
    someone **saw in the product** (prior file SPEC-DIFF, LIVE VERIFICATION,
    copy-bug note) is asserted exactly as seen, with a note. A typo that exists
@@ -145,7 +147,7 @@ Build a working list in TodoWrite (not in the file):
 
 - main function · views (screens/pages) in scope · inputs · preconditions · roles
 - **requirements** — keep the material's own ids (`AC-xx`, `Rule x`, `Alt x`).
-  Number un-numbered prose rules `BR-001`, `BR-002`… in order of appearance, each
+  Number un-numbered prose rules `RQ-01`, `RQ-02`… in order of appearance, each
   with its source (file + section, or "user brief").
 - **the full inventory** — every enumerable item in the source, not only ACs and
   Rules: each input field and its validation, each interaction element and its
@@ -202,6 +204,7 @@ and TEST DATA. Fill:
 - `# Feature: <name>  (<case id>)` — **one** id, in the format the context file
   defines (PROJECT.md §3). An older id from a prior file goes on the `Source:`
   line ("formerly US-001"), never beside the current one.
+- `# Scenario IDs: next @TC-NN` — the next free scenario id (CONTEXT_RESOLUTION.md §9).
 - `# Source:` — spec/DR: `"<title>" v<n> (<author>, <DD Mon YYYY>)`; brief:
   `"User brief" (<requester if known>, <DD Mon YYYY>)`; prior file observations:
   `prior file <path> (observations carried forward)`; one line each.
@@ -243,8 +246,11 @@ Each scenario (SKILL.md §4.2–§4.3, §6.1; context §3, §6):
 1. Traceability comment on its own line: `# AC-07 / Rule 4 - <why>`. Markers on
    their own comment lines: `# [BACKEND] <what is needed>`, `# [LIMIT] <resource>`,
    `# OQ-xx …`.
-2. Tag line in slot order: direction, check type, gates, platform, area, screen —
-   only tags from the vocabulary.
+2. Tag line in slot order: direction, check type, gates, platform, area, screen,
+   **scenario id** — only tags from the vocabulary. A new scenario takes the `next`
+   value, then `next` goes up by one. An existing scenario keeps its id in every
+   mode; a deleted one's id is retired (never reused). An Outline has one id;
+   `Examples` never carry one.
 3. `Scenario: Positive - …` / `Scenario: Negative - …` naming behaviour and
    outcome; the prefix agrees with the direction tag.
 4. At least one `Given`, one `When`, one `Then`; one behaviour; observable
@@ -273,7 +279,10 @@ header's coverage summary line must match these counts.
 1. Run `<Validator> "<target file>"`. Fix every FAIL and re-run until 0 FAIL.
    Every WARN is fixed or explained in the report — a G16 means a scenario breaks
    Rule 4 and must go; a P11 means the `IMPORT RULES` comment was not copied
-   verbatim.
+   verbatim. Then run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate_case_ids.py`
+   (add `--config <the same qaqc.json path>` when a non-default config is in use);
+   fix every S-FAIL that names the target file (a reused, renumbered or duplicate
+   id). An S-FAIL naming another file is reported, not fixed.
 2. Whatever `Project rules` says is *not machine-checked*, check yourself:
    import rules (context §13, else the template's `IMPORT RULES` block); tag
    vocabulary, slot order, one direction + one check type, area + screen tags,
@@ -408,6 +417,7 @@ Critical rules covered: <x>/<y>
 
 ### Checks
 validate_feature.py: 0 FAIL, <n> WARN (<why kept>)  · project rules: <machine-checked | self-checked: …>
+validate_case_ids.py: <n> FAIL, <n> WARN · scenario ids: <n> kept / <n> new (next @TC-NN) / <n> retired
 Project rules: <pass | fixed: …>
 Queued work: <recorded where the context file says | listed here: …>
 ```

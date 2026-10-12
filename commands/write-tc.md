@@ -29,9 +29,9 @@ option 1 → use the path; option 2 → tell the user to run `/ennam-qaqc:init`,
 stop; option 3 → `Context file: none (plugin defaults)`.
 
 Project rules: from `.claude/qaqc.json` →
-`Project rules: machine-checked — importRules (<keys>), tagRules (<slots>), IMPORT RULES comment`.
+`Project rules: machine-checked — importRules (<keys>), tagRules (<slots>), caseIds, IMPORT RULES comment`.
 Name whichever of the three is missing as `not machine-checked — check it
-yourself`. If `importRules` or `tagRules` is missing, add one line to the relay
+yourself`. If `importRules`, `tagRules`, `caseIds` or `tagRules.scenarioId` is missing, add one line to the relay
 in Step 8: "Tip: run `/ennam-qaqc:init` → refresh rules, so the validator
 enforces them." (No question — this is not a gate.)
 
@@ -63,6 +63,9 @@ From the context file's placement rule (PROJECT.md §3) or the defaults
 (CONTEXT_RESOLUTION.md §5): area folder, file name, case id, area tag, screen
 tag. `--out` wins for the path. The case id comes from the material (DR
 `detail_id`, story id, …) in the context file's format.
+Check it against `caseIds.pattern` and the registry codes. An unregistered platform
+code → ask for the code and offer to add it to the registry; never derive one. A case
+id another `.feature` already carries is the Step 5 gate.
 
 Anything you cannot derive from a named source → ask (AskUserQuestion, derived
 candidates as options). A case id nobody can give → `<TODO>`.

@@ -10,6 +10,11 @@
     "maxTitleLength": 200,
     "maxTagLength": 100
   },
+  "caseIds": {
+    "pattern": "^DR-(?P<code>[A-Z0-9]{2,8})-\\d{3}-\\d{3}-\\d{2}$",
+    "registry": ".claude/dr-platforms.json",
+    "drSources": "docs/PLATFORMS/**/details/DR-*.md"
+  },
   "tagRules": {
     "direction": [
       "@positive",
@@ -39,6 +44,7 @@
       "@explore",
       "@provider-listing"
     ],
+    "scenarioId": {"prefix": "@TC-", "digits": 2},
     "titlePrefix": {
       "@positive": "Positive - ",
       "@negative": "Negative - "

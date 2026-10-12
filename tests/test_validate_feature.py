@@ -529,5 +529,123 @@ class SettledEdgeCaseTest(unittest.TestCase):
         self.assertEqual(settled(text, TAG_RULES), [])
 
 
+ID_TAG_RULES = dict(TAG_RULES, scenarioId={"prefix": "@TC-", "digits": 2})
+CASE_RULES = {"pattern": r"^DR-(?P<code>[A-Z]{2,4})-\d{3}-\d{3}-\d{2}$", "codes": ["PA"]}
+
+IDS_VALID = (VALID
+             .replace("# Feature: Sample  (US-001)", "# Feature: Sample  (DR-PA-001-001-01)\n# Scenario IDs: next @TC-03")
+             .replace("@positive @logic @area @screen\n  Scenario: Positive", "@positive @logic @area @screen @TC-01\n  Scenario: Positive")
+             .replace("@negative @logic @area @screen\n  Scenario Outline", "@negative @logic @area @screen @TC-02\n  Scenario Outline"))
+
+
+def id_findings(text, case_rules=CASE_RULES, tag_rules=ID_TAG_RULES):
+    return [(f.code, f.severity) for f in vf.validate(text, None, tag_rules, None, case_rules)
+            if f.code in ("P8", "P9", "P14", "P15", "P16")]
+
+
+class IdentifierTest(unittest.TestCase):
+    def test_valid_ids_pass(self):
+        self.assertEqual(id_findings(IDS_VALID), [])
+
+    def test_p14_wrong_shape_fails(self):
+        self.assertIn(("P14", "FAIL"), id_findings(IDS_VALID.replace("(DR-PA-001-001-01)", "(DR-001-001-01)")))
+
+    def test_p14_unknown_code_fails(self):
+        self.assertIn(("P14", "FAIL"), id_findings(IDS_VALID.replace("(DR-PA-001-001-01)", "(DR-XX-001-001-01)")))
+
+    def test_p14_two_ids_fail(self):
+        self.assertIn(("P14", "FAIL"), id_findings(IDS_VALID.replace("(DR-PA-001-001-01)", "(US-001 / DR-PA-001-001-01)")))
+
+    def test_p14_missing_is_warn(self):
+        self.assertEqual(id_findings(IDS_VALID.replace("(DR-PA-001-001-01)", "(<TODO>)")), [("P14", "WARN")])
+
+    def test_p15_missing_id_fails(self):
+        self.assertIn(("P15", "FAIL"), id_findings(IDS_VALID.replace(" @TC-02", "")))
+
+    def test_p15_duplicate_id_fails(self):
+        self.assertIn(("P15", "FAIL"), id_findings(IDS_VALID.replace("@TC-02", "@TC-01")))
+
+    def test_p15_duplicate_by_number_fails(self):
+        self.assertIn(("P15", "FAIL"), id_findings(IDS_VALID.replace("@TC-02", "@TC-001")))
+
+    def test_p15_missing_message_uses_placeholder(self):
+        found = [f.message for f in vf.validate(IDS_VALID.replace(" @TC-02", ""), None, ID_TAG_RULES, None, CASE_RULES)
+                 if f.code == "P15"]
+        self.assertTrue(any("(@TC-NN)" in message for message in found), found)
+        spec = {"prefix": "@T-", "digits": 3}
+        text = IDS_VALID.replace(" @TC-02", "")
+        found = [f.message for f in vf.validate(text, None, dict(TAG_RULES, scenarioId=spec), None, CASE_RULES)
+                 if f.code == "P15"]
+        self.assertTrue(any("(@T-NNN)" in message for message in found), found)
+
+    def test_p15_id_on_examples_fails(self):
+        text = IDS_VALID.replace("    Examples:\n", "    @TC-09\n    Examples:\n")
+        self.assertIn(("P15", "FAIL"), id_findings(text))
+
+    def test_p16_next_not_above_highest_fails(self):
+        self.assertIn(("P16", "FAIL"), id_findings(IDS_VALID.replace("next @TC-03", "next @TC-02")))
+
+    def test_p16_missing_next_is_warn(self):
+        self.assertEqual(id_findings(IDS_VALID.replace("# Scenario IDs: next @TC-03\n", "")), [("P16", "WARN")])
+
+    def test_id_before_screen_tag_is_out_of_order(self):
+        text = IDS_VALID.replace("@area @screen @TC-01", "@area @TC-01 @screen")
+        self.assertIn(("P8", "FAIL"), id_findings(text))
+
+    def test_no_rules_no_checks(self):
+        self.assertEqual(id_findings(VALID, None, TAG_RULES), [])
+
+    def test_identifiers_helper(self):
+        info = vf.identifiers(IDS_VALID, {"prefix": "@TC-", "digits": 2})
+        self.assertEqual(info["case_id"], "DR-PA-001-001-01")
+        self.assertEqual(info["next"], 3)
+        self.assertEqual([n for n, _ in info["scenarios"]], [1, 2])
+
+    def test_format_scenario_id(self):
+        self.assertEqual(vf.format_scenario_id({"prefix": "@TC-", "digits": 2}, 5), "@TC-05")
+        self.assertEqual(vf.format_scenario_id({"prefix": "@TC-", "digits": 2}, 105), "@TC-105")
+
+
+class CaseIdConfigTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name)
+        (root / ".claude").mkdir()
+        (root / ".claude" / "dr-platforms.json").write_text(json.dumps({"platformCodes": {"PARENT-APP": "PA"}}),
+                                                            encoding="utf-8")
+        (root / ".claude" / "qaqc.json").write_text(json.dumps({
+            "caseIds": {"pattern": CASE_RULES["pattern"]}, "tagRules": ID_TAG_RULES}), encoding="utf-8")
+        self.config = root / ".claude" / "qaqc.json"
+
+    def test_registry_codes_are_loaded(self):
+        project = vf.load_project_rules(self.config)
+        self.assertEqual(project.case_ids["codes"], ["PA"])
+
+    def test_missing_registry_is_a_note(self):
+        (Path(self.tmp.name) / ".claude" / "dr-platforms.json").unlink()
+        project = vf.load_project_rules(self.config)
+        self.assertIsNone(project.case_ids["codes"])
+        self.assertTrue(any("registry" in note for note in project.notes))
+
+    def test_nested_registry_shape_is_loaded(self):
+        (Path(self.tmp.name) / ".claude" / "dr-platforms.json").write_text(json.dumps(
+            {"projects": {"C4K": {"platforms": {"PARENT-APP": "C4KEXT", "WEB-PORTAL": "C4KPW"}}}}), encoding="utf-8")
+        project = vf.load_project_rules(self.config)
+        self.assertEqual(project.case_ids["codes"], ["C4KEXT", "C4KPW"])
+
+    def test_registry_without_codes_is_a_note(self):
+        (Path(self.tmp.name) / ".claude" / "dr-platforms.json").write_text(json.dumps({"other": 1}), encoding="utf-8")
+        project = vf.load_project_rules(self.config)
+        self.assertIsNone(project.case_ids["codes"])
+        self.assertTrue(any("no platform codes" in note for note in project.notes))
+
+    def test_registry_with_wrong_types_does_not_crash(self):
+        (Path(self.tmp.name) / ".claude" / "dr-platforms.json").write_text(json.dumps(
+            {"projects": {"A": 5, "B": {"platforms": ["x"]}}}), encoding="utf-8")
+        project = vf.load_project_rules(self.config)
+        self.assertIsNone(project.case_ids["codes"])
+
+
 if __name__ == "__main__":
     unittest.main()

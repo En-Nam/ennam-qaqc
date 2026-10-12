@@ -28,12 +28,18 @@ may be absent or `null`.
     "maxTitleLength": 200,
     "maxTagLength": 100
   },
+  "caseIds": {
+    "pattern": "^DR-(?P<code>[A-Z0-9]{2,8})-\\d{3}-\\d{3}-\\d{2}$",
+    "registry": ".claude/dr-platforms.json",
+    "drSources": "docs/PLATFORMS/**/details/DR-*.md"
+  },
   "tagRules": {
     "direction": ["@positive", "@negative"],
     "checkType": ["@logic", "@navigation", "@ui", "@a11y"],
     "gates": ["@not-implemented", "@blocked", "@manual", "@pending-oq"],
     "platform": ["@ios-only", "@android-only"],
     "area": ["@authentication", "@account", "@explore"],
+    "scenarioId": { "prefix": "@TC-", "digits": 2 },
     "titlePrefix": { "@positive": "Positive - ", "@negative": "Negative - " },
     "triage": {
       "blocked": ["@blocked", "@not-implemented"],
@@ -69,7 +75,17 @@ exactly one `direction` and one `checkType` tag, at most one `platform` tag,
 tags in slot order (direction → check type → gates → platform → area →
 screen), exactly one `area` tag followed by one screen tag (any other tag), and
 the title prefix that `titlePrefix` maps the direction tag to. A slot list that
-is absent is not checked.
+is absent is not checked. `tagRules.scenarioId` (`{"prefix": "@TC-", "digits": 2}`)
+makes the scenario id the **last** slot, after the screen tag; it is checked by
+P15 and P16 (§9).
+
+**`caseIds`** is the case-id rule: `pattern` is a regex with a named group
+`(?P<code>…)` for the platform code, `registry` is the file listing the valid codes
+(default `.claude/dr-platforms.json`, shared with ennam-ba), and `drSources` is an
+optional glob of DR files. The registry may be flat (`{"platformCodes": {"PLATFORM": "CODE"}}`)
+or nested (`{"projects": {"<P>": {"platforms": {"PLATFORM": "CODE"}}}}`, the union of all
+projects' codes). Checked by P14 in each file and by
+`validate_case_ids.py` S1/S2 across the suite — see §9.
 
 **`tagRules.triage`** maps gate tags to MANUAL and BLOCKED (first match wins:
 blocked, then manual, else automatable). With it, the validator checks the
@@ -244,3 +260,26 @@ it). Classify each scenario by **its own expected result**, not the whole flow:
   automatable; PRECONDITIONS states the **run budget** instead, e.g. "one OTP
   send per run; reuse the active code across the OTP-screen scenarios; at most
   5 runs per hour per number".
+
+## 9. Identifiers
+
+Borrowed from ennam-ba: an identifier that travels is unique on its own, its codes
+come from a registry and are never guessed, and a number is never reused.
+
+| Identifier | Where | Unique within | Rule |
+|---|---|---|---|
+| **Case id** | `# Feature: <name>  (<case id>)` | the whole suite | `caseIds.pattern`; code in `caseIds.registry` (ennam-ba's `.claude/dr-platforms.json`); one per file — older ids go on `Source:`; checked against DR files when `caseIds.drSources` is set; missing = warning |
+| **Scenario id** | `@TC-NN`, last on each scenario's tag line | the file | one per Scenario / Scenario Outline, never on `Examples`; new = the `# Scenario IDs: next @TC-NN` value, which then goes up; never renumbered; a deleted scenario's id is retired, never reused |
+| `RQ-xx` | traceability comments, COVERAGE | the file | rules numbered from prose that has no ids of its own |
+| `OQ-xx`, SPEC-DIFF n | header | the file | — |
+
+Quoted outside the file, a file-local id carries the case id: `DR-PA-001-001-01 @TC-05`,
+`DR-PA-001-001-01 OQ-03`.
+
+Checked by `validate_feature.py` (P14–P16, per file) and
+`validate_case_ids.py` (S1–S7, across the suite and against git HEAD).
+
+Limits: deleting a scenario and giving its id to a new scenario in the same uncommitted
+change cannot be told from a retitle (S4 only sees ids absent from HEAD), and a moved or
+renamed file loses its history comparison until it is committed; the rule "never reuse
+a retired id" covers both.

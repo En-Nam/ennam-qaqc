@@ -2,6 +2,30 @@
 
 All notable changes to the `ennam-qaqc` plugin are documented here.
 
+## [0.10.0] - 2026-10-12
+
+Ids in file and folder names. Nothing to re-run: projects with `caseIds` in
+`qaqc.json` (0.9.0's init) get it; `"names": false` in `caseIds` turns it off. The
+`.feature` content is unchanged — only paths change.
+
+### Added
+
+- **`scripts/name_by_id.py`**: renames each file with one valid case id to
+  `<case id>-<name>.feature` and each area folder to `EP-<code>-<epic>-<name>`
+  (e.g. `EP-PA-005-Collections/DR-PA-005-003-01-create-collection.feature`). A header
+  still holding several ids is named by the one valid id in it. Dry run by default;
+  `git mv` for tracked paths; never overwrites; a folder whose files name different
+  epics keeps its name; conform's state and reports follow the rename.
+- **Conform** runs it as its last step (Step 8), after the case ids are settled.
+- **`validate_case_ids.py`** S8 / S9 (WARN): file or folder name without its id.
+  History checks (S3–S6) follow a rename — git's rename detection, else the path
+  without its id prefixes.
+
+### Changed
+
+- **write-tc** writes new files at the named path. Screen and area tags never include
+  the ids (CONTEXT_RESOLUTION.md §5, §9).
+
 ## [0.9.0] - 2026-10-12
 
 ennam-ba's numbering rules, applied to test cases. **Re-run `/ennam-qaqc:init` →

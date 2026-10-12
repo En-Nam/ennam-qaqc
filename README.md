@@ -102,6 +102,20 @@ teammate's own format — up to the same rules as new output:
    re-triage, tag vocabulary, open questions, coverage against the source spec —
    every scenario change listed with the rule that required it.
 
+3. **Ids in names** (`scripts/name_by_id.py`, with `caseIds` set): each file with
+   one valid case id becomes `<case id>-<name>.feature`, each area folder
+   `EP-<code>-<epic>-<name>` (from its files' case ids). Tags do not change. Tracked
+   files move with `git mv`, so `git diff -M --stat HEAD` shows renames. Dry run by default:
+
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/name_by_id.py test-cases          # show the plan
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/name_by_id.py --write test-cases  # rename
+   ```
+
+   ```
+   test-cases/EP-PA-005-Collections/DR-PA-005-003-01-create-collection.feature
+   ```
+
 Files are edited in place, so the command requires them to be committed first
 and never commits itself — `git diff` reviews, `git restore <file>` undoes.
 
@@ -139,7 +153,7 @@ and never commits itself — `git diff` reviews, `git restore <file>` undoes.
 - **The header's triage totals** — `# Triage: A automatable / M manual / B blocked (N scenarios)`
   must match the tags (P12; a missing line is a warning). Header comments only:
   the importer never reads them, so the importable Gherkin is unchanged.
-- **Identifiers** (P14–P16 per file; `scripts/validate_case_ids.py` S1–S7 across the suite) — case id format and registry code, one `@TC-NN` per scenario, no reused or renumbered ids.
+- **Identifiers** (P14–P16 per file; `scripts/validate_case_ids.py` S1–S9 across the suite) — case id format and registry code, one `@TC-NN` per scenario, no reused or renumbered ids, ids in file and folder names.
 - **Two warnings** — duplicate scenario titles (G15), and steps a tester cannot
   observe in the product, such as server-side inspection or delivery logs (G16).
 

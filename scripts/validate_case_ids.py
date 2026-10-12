@@ -23,7 +23,12 @@ Checks:
      (titles duplicated on either side are skipped; G15 warns about duplicate titles)
   S6 WARN scenario ids retired since HEAD (scenario removed) - listed; never reuse them
   S7 WARN a file without a case id
-  S1, S2 and S7 need caseIds in qaqc.json; S3-S6 need tagRules.scenarioId. Without them the check
+  S8 WARN a file name does not start with its case id ('<case id>-<name>.feature')
+  S9 WARN a folder name does not start with its epic id ('EP-<code>-<epic>-<name>'), or its files
+     name different epics. Fix S8/S9 with name_by_id.py (conform runs it). Off with caseIds.names = false.
+  A renamed file is compared with HEAD under its old path (git's rename detection, else the path
+  with the id prefixes removed).
+  S1, S2, S7-S9 need caseIds in qaqc.json; S3-S6 need tagRules.scenarioId. Without them the check
   is skipped with a note, so a project that has not refreshed its rules sees nothing new.
 
 Exit:    0 no FAIL, 1 at least one FAIL, 64 usage error
@@ -41,6 +46,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import name_by_id  # noqa: E402
 import validate_feature as vf  # noqa: E402
 
 DETAIL_ID_RE = re.compile(r"^detail_id:\s*['\"]?([^'\"#\s]+)", re.MULTILINE)
@@ -66,6 +72,31 @@ def head_text(repo_root, rel):
     except OSError:
         return None
     return out.stdout if out.returncode == 0 else None
+
+
+def head_renames(repo_root):
+    """{new path: HEAD path} for renames git detects since HEAD (staged or not), relative to repo_root."""
+    try:
+        out = subprocess.run(["git", "diff", "-M", "--name-status", "--relative", "HEAD"], cwd=repo_root,
+                             capture_output=True, encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    renames = {}
+    for line in out.stdout.splitlines() if out.returncode == 0 else []:
+        parts = line.split("\t")
+        if len(parts) == 3 and parts[0].startswith("R"):
+            renames[parts[2]] = parts[1]
+    return renames
+
+
+def head_text_followed(repo_root, rel, renames):
+    """HEAD text of `rel`, of the path it was renamed from, or of `rel` without its id prefixes."""
+    for candidate in (rel, renames.get(rel), "/".join(name_by_id.strip_id(part) for part in rel.split("/"))):
+        if candidate:
+            text = head_text(repo_root, candidate)
+            if text is not None:
+                return text
+    return None
 
 
 def history_findings(rel, now, before, spec):
@@ -135,6 +166,7 @@ def run(args, out):
             known = dr_ids(repo_root, pattern)
 
     files = sorted(path for path in root.rglob("*.feature") if path.name != "TEMPLATE.feature")
+    renames = head_renames(repo_root) if isinstance(spec, dict) and not args.no_history else {}
     for path in files:
         try:
             rel = path.resolve().relative_to(repo_root).as_posix()
@@ -152,8 +184,16 @@ def run(args, out):
                 findings.append(("FAIL", "S2", "%s: case id %s matches no DR detail_id under %s"
                                  % (rel, case_id, case_rules["drSources"])))
         if isinstance(spec, dict) and not args.no_history:
-            before = head_text(repo_root, rel)
+            before = head_text_followed(repo_root, rel, renames)
             findings.extend(history_findings(rel, now, vf.identifiers(before, spec) if before is not None else None, spec))
+    if case_rules is not None and case_rules.get("names") is not False:
+        for kind, old, new, note in name_by_id.plan(files, case_rules, root):
+            if new is not None:
+                findings.append(("WARN", "S8" if kind == "file" else "S9", "%s: should be named %s"
+                                 % (old.relative_to(root).as_posix(), new.name)))
+            elif kind == "folder" or "already exists" in note:
+                findings.append(("WARN", "S8" if kind == "file" else "S9", "%s: %s"
+                                 % (old.relative_to(root).as_posix(), note)))
     for case_id, paths in sorted(by_case.items()):
         if len(paths) > 1:
             findings.append(("FAIL", "S1", "case id %s is claimed by %d files: %s" % (case_id, len(paths), ", ".join(paths))))

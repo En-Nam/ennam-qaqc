@@ -20,7 +20,7 @@ material in your prompt.
 | `Mode` | `create`, `update`, `preview` or `upgrade` (see Modes) |
 | `Target file` | the `.feature` path to write or update |
 | `Case id` | id for the `# Feature:` line, or `<TODO>` |
-| `Area folder` / `Area tag` / `Screen tag` | placement and routing tags (derive per the context file when not given) |
+| `Area folder` / `Area tag` / `Screen tag` | placement and routing tags (derive per the context file when not given; never include the id prefixes of `EP-…` folders or `<case id>-…` file names — CONTEXT_RESOLUTION.md §9) |
 | `Context file` | the project context file, or `none (plugin defaults)` |
 | `Template` | the skeleton to follow, and why it was chosen |
 | `Test-cases root` | folder holding the suite |

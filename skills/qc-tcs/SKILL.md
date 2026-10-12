@@ -628,3 +628,10 @@ Findings from comparing plugin output with a hand-written file. They sharpen
   unique across the suite, its platform code from the registry; one `@TC-NN` per
   scenario, never renumbered, retired ids never reused; `RQ-xx` for rules numbered
   from prose.
+
+### 0.10.0 additions
+
+- **Ids in paths, not in tags.** With `caseIds` set, a file is
+  `<case id>-<name>.feature` and its area folder `EP-<code>-<epic>-<name>`. The screen
+  and area tags stay the names without the ids — routing tags never change because a
+  path did.

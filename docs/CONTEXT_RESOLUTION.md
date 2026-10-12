@@ -156,9 +156,9 @@ the report lists which defaults were used.
 | Topic | Default |
 |---|---|
 | Tag vocabulary and order | The resolved template's Tag legend and "Tag order" line |
-| Area tag | kebab-case of the area folder (`Explore & Discovery/` → `@explore-discovery`) |
-| Screen tag | the file name without `.feature` |
-| File path | `<root>/<Area>/<kebab-case-feature-name>.feature` |
+| Area tag | kebab-case of the area folder without its id (`EP-PA-003-Explore & Discovery/` → `@explore-discovery`) |
+| Screen tag | the file name without `.feature` and without its case id (`DR-PA-003-005-01-search-form.feature` → `@search-form`) |
+| File path | `<root>/<Area>/<kebab-case-feature-name>.feature`; with `caseIds` set (§9): `<root>/EP-<code>-<epic>-<Area>/<case id>-<kebab-case-feature-name>.feature` |
 | Scenario naming | `Scenario: Positive - …` / `Scenario: Negative - …` |
 | Shared setup (`Background:`) | not used — every scenario stands alone |
 | Priority | none — do not introduce one |
@@ -276,10 +276,25 @@ come from a registry and are never guessed, and a number is never reused.
 Quoted outside the file, a file-local id carries the case id: `DR-PA-001-001-01 @TC-05`,
 `DR-PA-001-001-01 OQ-03`.
 
+**Ids in paths** (with `caseIds` set; `"names": false` in `caseIds` turns it off):
+
+| Path part | Name | Example |
+|---|---|---|
+| File | `<case id>-<name>.feature` | `DR-PA-005-003-01-create-collection.feature` |
+| Area folder | `EP-<code>-<epic>-<name>` — code and epic from its files' case ids | `EP-PA-005-Collections/` |
+
+Only the id prefix is added; the name part and the routing tags stay as they were
+(the screen tag is the file name without its id, the area tag the folder name
+without its id). A file without one valid case id keeps its name; a folder whose
+files name different epics keeps its name. `scripts/name_by_id.py` does the
+renaming (conform runs it as its last step); a new file is written at the named
+path from the start.
+
 Checked by `validate_feature.py` (P14–P16, per file) and
-`validate_case_ids.py` (S1–S7, across the suite and against git HEAD).
+`validate_case_ids.py` (S1–S9, across the suite and against git HEAD).
 
 Limits: deleting a scenario and giving its id to a new scenario in the same uncommitted
-change cannot be told from a retitle (S4 only sees ids absent from HEAD), and a moved or
-renamed file loses its history comparison until it is committed; the rule "never reuse
-a retired id" covers both.
+change cannot be told from a retitle (S4 only sees ids absent from HEAD), and a file
+moved to an unrelated path loses its history comparison until it is committed (a rename
+git detects, or one that only adds id prefixes, keeps it); the rule "never reuse a
+retired id" covers both.

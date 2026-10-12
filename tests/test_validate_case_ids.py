@@ -100,6 +100,34 @@ class SuiteTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("S7", out)
 
+    def test_duplicate_titles_unchanged_is_not_s5(self):
+        self.write("a.feature", feature("DR-PA-001-001-01", [(1, "Login"), (2, "Login")], 3))
+        self.commit()
+        code, out = self.run_suite()
+        self.assertEqual(code, 0)
+        self.assertNotIn("S5", out)
+
+    def test_malformed_config_is_reported_not_crashed(self):
+        (self.repo / ".claude" / "qaqc.json").write_text("{not json", encoding="utf-8")
+        code, out = self.run_suite()
+        self.assertEqual(code, 1)
+        self.assertIn("cannot read", out)
+
+    def test_absolute_drsources_is_warn_and_skips_s2(self):
+        self.config["caseIds"]["drSources"] = "/abs/DR-*.md"
+        self.save_config()
+        code, out = self.run_suite()
+        self.assertEqual(code, 0)
+        self.assertIn("drSources", out)
+        self.assertNotIn("FAIL S2", out)
+
+    def test_empty_drsources_is_warn_and_skips_s2(self):
+        self.config["caseIds"]["drSources"] = ""
+        self.save_config()
+        code, out = self.run_suite()
+        self.assertEqual(code, 0)
+        self.assertIn("drSources", out)
+
 
 if __name__ == "__main__":
     unittest.main()

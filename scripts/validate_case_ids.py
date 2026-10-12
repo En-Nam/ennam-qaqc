@@ -15,14 +15,18 @@ Usage:   python3 validate_case_ids.py [--config PATH] [--root DIR] [--no-history
 
 Checks:
   S1 FAIL two .feature files share a case id
+  S1 FAIL two .feature files share a case id
   S2 FAIL a case id matches no DR detail_id        (only when caseIds.drSources is set)
+     WARN caseIds.drSources is empty or absolute; the S2 check is skipped
   S3 FAIL a file's 'next' scenario id went down since HEAD
   S4 FAIL a scenario id new since HEAD is below HEAD's 'next' - a retired id reused
-  S5 FAIL a scenario whose title is unchanged since HEAD has a different id - renumbered
+  S5 FAIL a scenario whose title occurs once at HEAD and once now has a different id - renumbered
+     (titles duplicated on either side are skipped; G15 warns about duplicate titles)
   S6 WARN scenario ids retired since HEAD (scenario removed) - listed; never reuse them
   S7 WARN a file without a case id
 
 Exit:    0 no FAIL, 1 at least one FAIL, 64 usage error
+         1 also when .claude/qaqc.json cannot be read or parsed as a JSON object
 
 Python 3.7+, standard library only.
 """
@@ -32,7 +36,7 @@ import json
 import re
 import subprocess
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -78,9 +82,13 @@ def history_findings(rel, now, before, spec):
         if number < head_next:
             findings.append(("FAIL", "S4", "%s: %s is new since HEAD but below HEAD's next %s - a retired id is "
                              "being reused; use the next number" % (rel, fmt(number), fmt(head_next))))
+    head_titles = Counter(title for _, title in before["scenarios"])
+    now_titles = Counter(title for _, title in now["scenarios"])
     head_by_title = {title: number for number, title in head_ids.items()}
     for number, title in sorted(now_ids.items()):
         old = head_by_title.get(title)
+        if head_titles[title] != 1 or now_titles[title] != 1:
+            continue  # duplicate titles cannot be matched by title; G15 warns about them
         if old is not None and old != number:
             findings.append(("FAIL", "S5", "%s: %r was %s at HEAD and is now %s - scenario ids never change"
                              % (rel, title, fmt(old), fmt(number))))
@@ -96,14 +104,28 @@ def run(args, out):
     if config is None or not Path(config).is_file():
         out.write("FAIL: no .claude/qaqc.json found - run /ennam-qaqc:init first\n")
         return 1
-    data = json.loads(Path(config).read_text(encoding="utf-8"))
+    try:
+        data = json.loads(Path(config).read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("top level is not a JSON object")
+    except (OSError, ValueError) as exc:
+        out.write("FAIL: cannot read %s (%s)\n" % (config, type(exc).__name__))
+        return 1
     repo_root = Path(config).resolve().parent.parent
     root = Path(args.root) if args.root else repo_root / (data.get("testCasesRoot") or "test-cases")
     spec = (data.get("tagRules") or {}).get("scenarioId")
     case_rules = data.get("caseIds") or {}
-    known = dr_ids(repo_root, case_rules["drSources"]) if isinstance(case_rules.get("drSources"), str) else None
 
     findings, by_case = [], defaultdict(list)
+    known = None
+    pattern = case_rules.get("drSources")
+    if isinstance(pattern, str):
+        if not pattern.strip() or pattern.startswith("/") or Path(pattern).is_absolute():
+            findings.append(("WARN", "S2", "caseIds.drSources must be a glob relative to the repo root; "
+                             "DR existence not checked"))
+        else:
+            known = dr_ids(repo_root, pattern)
+
     files = sorted(path for path in root.rglob("*.feature") if path.name != "TEMPLATE.feature")
     for path in files:
         try:

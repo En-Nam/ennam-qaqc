@@ -154,5 +154,55 @@ class CliTest(unittest.TestCase):
         self.assertEqual(cf.main([]), 64)
 
 
+ID_PROJECT = vf.ProjectRules(
+    import_rules=PROJECT.import_rules,
+    tag_rules=dict(PROJECT.tag_rules, scenarioId={"prefix": "@TC-", "digits": 2}),
+    import_comment=IMPORT_COMMENT,
+    case_ids={"pattern": r"^DR-(?P<code>[A-Z]{2,4})-\d{3}-\d{3}-\d{2}$", "codes": ["PA"]},
+)
+LEGACY_DR = LEGACY.replace("(US-001)", "(DR-001-001-01)")
+
+
+class IdentifierConformTest(unittest.TestCase):
+    def setUp(self):
+        self.result = cf.conform(LEGACY_DR, ID_PROJECT)
+
+    def test_ids_assigned_last_in_tag_order(self):
+        self.assertIn("@positive @ui @area @screen @TC-01\n  Scenario: Positive - Screen matches design", self.result.text)
+        self.assertIn("@negative @logic @area @screen @TC-02\n  Scenario: Negative - Reject bad input", self.result.text)
+        self.assertIn("C10", self.result.changes)
+
+    def test_next_line_written(self):
+        self.assertIn("# Scenario IDs: next @TC-03", self.result.text)
+
+    def test_legacy_case_id_migrated_with_single_code(self):
+        self.assertIn("# Feature: Legacy  (DR-PA-001-001-01)\n#         (formerly DR-001-001-01)", self.result.text)
+        self.assertIn("C11", self.result.changes)
+
+    def test_result_validates_clean(self):
+        findings = vf.validate(self.result.text, ID_PROJECT.import_rules, ID_PROJECT.tag_rules,
+                               ID_PROJECT.import_comment, ID_PROJECT.case_ids)
+        self.assertEqual([f.code for f in findings if f.severity == "FAIL"], [])
+
+    def test_idempotent(self):
+        again = cf.conform(self.result.text, ID_PROJECT)
+        self.assertEqual(again.changes, set())
+
+    def test_existing_ids_kept_and_new_ones_continue(self):
+        text = self.result.text.replace("@TC-01", "@TC-05").replace("next @TC-03", "next @TC-06")
+        text = text.replace(" @TC-02\n", "\n")
+        result = cf.conform(text, ID_PROJECT)
+        self.assertIn("@TC-05\n  Scenario: Positive - Screen matches design", result.text)
+        self.assertIn("@TC-06\n  Scenario: Negative - Reject bad input", result.text)
+        self.assertIn("# Scenario IDs: next @TC-07", result.text)
+
+    def test_ambiguous_case_id_left_alone(self):
+        project = vf.ProjectRules(tag_rules=ID_PROJECT.tag_rules,
+                                  case_ids=dict(ID_PROJECT.case_ids, codes=["PA", "WP"]))
+        result = cf.conform(LEGACY_DR, project)
+        self.assertNotIn("C11", result.changes)
+        self.assertIn("(DR-001-001-01)", result.text)
+
+
 if __name__ == "__main__":
     unittest.main()

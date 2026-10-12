@@ -26,6 +26,10 @@ Changes (each only when the project's rules call for it):
   C7 a missing title prefix added from the direction tag        (tagRules.titlePrefix)
   C8 the template's IMPORT RULES comment inserted, or restored if reworded
   C9 the `# Triage:` line recounted, or inserted after the CONVERTIBILITY heading   (tagRules.triage)
+  C10 a scenario without an id gets the next one (@TC-NN, last in its tag line) and the
+      '# Scenario IDs: next @TC-NN' header line is written     (tagRules.scenarioId)
+  C11 a legacy case id 'DR-001-001-01' becomes 'DR-PA-001-001-01' when the registry has one
+      code (or caseIds.defaultCode); the old id is kept on a '(formerly …)' line   (caseIds)
 
 Safety check before anything is saved: the same scenarios in the same order,
 titles unchanged except for an added prefix, the same steps in the same order
@@ -162,8 +166,11 @@ def _structure(lines):
 def _order(tags, tag_rules):
     slots = [set(tag_rules.get(name) or []) for name in SLOTS]
     areas = set(tag_rules.get("area") or [])
+    id_re = vf.scenario_id_re(tag_rules["scenarioId"]) if isinstance(tag_rules.get("scenarioId"), dict) else None
 
     def rank(tag):
+        if id_re and id_re.match(tag):
+            return (len(slots) + 1, 0)
         for position, slot in enumerate(slots):
             if tag in slot:
                 return (position, 0)
@@ -175,11 +182,61 @@ def _tokens(lines, indices):
     return [token for index in indices for token in lines[index].split()]
 
 
+def _migrate_case_id(lines, case_ids, changes):
+    if not case_ids or not isinstance(case_ids.get("pattern"), str):
+        return lines
+    for index, line in enumerate(lines):
+        match = vf.CASE_ID_LINE_RE.match(line.strip())
+        if match:
+            break
+    else:
+        return lines
+    old = match.group(1).strip()
+    if re.fullmatch(case_ids["pattern"], old):
+        return lines
+    legacy = re.fullmatch(r"DR-(\d{3}-\d{3}-\d{2})", old)
+    codes = case_ids.get("codes") or []
+    code = case_ids.get("defaultCode") or (codes[0] if len(codes) == 1 else None)
+    if not legacy or not code:
+        return lines
+    new = "DR-%s-%s" % (code, legacy.group(1))
+    if not re.fullmatch(case_ids["pattern"], new):
+        return lines
+    changes.add("C11")
+    return lines[:index] + [lines[index].replace("(%s)" % old, "(%s)" % new),
+                            "#         (formerly %s)" % old] + lines[index + 1:]
+
+
+def _next_id_line(lines, spec, next_number, changes):
+    feature = _feature_index(lines)
+    if feature is None:
+        return lines
+    wanted = "# Scenario IDs: next %s" % vf.format_scenario_id(spec, next_number)
+    for index in range(feature):
+        if vf.NEXT_ID_LINE_RE.match(lines[index].strip()):
+            if lines[index] != wanted:
+                changes.add("C10")
+                return lines[:index] + [wanted] + lines[index + 1:]
+            return lines
+    # After the '# Feature: … (<case id>)' line; else before the IMPORT RULES comment;
+    # else just above Feature: (and any tags on it).
+    anchor = next((i + 1 for i in range(feature) if vf.CASE_ID_LINE_RE.match(lines[i].strip())), None)
+    if anchor is None:
+        anchor = next((i for i in range(feature) if lines[i].strip().startswith("# IMPORT RULES")), feature)
+        while anchor > 0 and lines[anchor - 1].strip().startswith("@"):
+            anchor -= 1
+    while anchor < feature and lines[anchor].strip().startswith("#         (formerly"):
+        anchor += 1
+    changes.add("C10")
+    return lines[:anchor] + [wanted] + lines[anchor:]
+
+
 def conform(text, project):
     newline = "\r\n" if "\r\n" in text else "\n"
     original = text.replace("\r\n", "\n").split("\n")
     changes = set()
     lines = fix_lines(original, changes)
+    lines = _migrate_case_id(lines, project.case_ids, changes)
     base = list(lines)
 
     import_rules = project.import_rules or {}
@@ -188,6 +245,13 @@ def conform(text, project):
     replace, delete, insert_before = {}, set(), {}
     background_steps = []
     prefixes = list((tag_rules.get("titlePrefix") or {}).values()) if isinstance(tag_rules.get("titlePrefix"), dict) else []
+
+    id_spec = tag_rules.get("scenarioId") if isinstance(tag_rules.get("scenarioId"), dict) else None
+    id_re = vf.scenario_id_re(id_spec) if id_spec else None
+    if id_spec:
+        known = vf.identifiers("\n".join(lines), id_spec)
+        used = [number for number, _ in known["scenarios"] if number is not None]
+        next_number = max(known["next"] or 1, max(used, default=0) + 1)
 
     lifted = []
     if import_rules.get("featureTags") is False and feature_tags:
@@ -232,6 +296,10 @@ def conform(text, project):
             if ordered != merged:
                 changes.add("C6")
             merged = ordered
+        if id_spec and not any(id_re.match(tag) for tag in merged):
+            merged = merged + [vf.format_scenario_id(id_spec, next_number)]
+            next_number += 1
+            changes.add("C10")
         if merged != tags or len(tag_indices) > 1:
             new_line = _indent(lines[index]) + " ".join(merged)
             if tag_indices:
@@ -266,6 +334,8 @@ def conform(text, project):
             lines.append(replace.get(index, line))
 
     lines = _import_comment(lines, project.import_comment, changes)
+    if id_spec:
+        lines = _next_id_line(lines, id_spec, next_number, changes)
     if isinstance(tag_rules.get("triage"), dict):
         lines = _triage_line(lines, tag_rules["triage"], changes)
 

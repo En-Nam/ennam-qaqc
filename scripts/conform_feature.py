@@ -29,7 +29,8 @@ Changes (each only when the project's rules call for it):
   C10 a scenario without an id gets the next one (@TC-NN, last in its tag line) and the
       '# Scenario IDs: next @TC-NN' header line is written     (tagRules.scenarioId)
   C11 a legacy case id 'DR-001-001-01' becomes 'DR-PA-001-001-01' when the registry has one
-      code (or caseIds.defaultCode); the old id is kept on a '(formerly …)' line   (caseIds)
+      code (or caseIds.defaultCode); the old id is appended to the header's first '# Source:' line
+      as ' (formerly …)', or kept on a '#         (formerly …)' line when there is none   (caseIds)
 
 Safety check before anything is saved: the same scenarios in the same order,
 titles unchanged except for an added prefix, the same steps in the same order
@@ -206,8 +207,14 @@ def _migrate_case_id(lines, case_ids, changes):
     if not re.fullmatch(case_ids["pattern"], new):
         return lines
     changes.add("C11")
-    return lines[:index] + [lines[index].replace("(%s)" % old, "(%s)" % new),
-                            "#         (formerly %s)" % old] + lines[index + 1:]
+    renamed = lines[index].replace("(%s)" % old, "(%s)" % new)
+    feature = _feature_index(lines)
+    for source in range(feature if feature is not None else len(lines)):
+        if lines[source].strip().startswith("# Source:"):
+            out = lines[:index] + [renamed] + lines[index + 1:]
+            out[source] = "%s (formerly %s)" % (out[source].rstrip(), old)
+            return out
+    return lines[:index] + [renamed, "#         (formerly %s)" % old] + lines[index + 1:]
 
 
 def _next_id_line(lines, spec, next_number, changes):

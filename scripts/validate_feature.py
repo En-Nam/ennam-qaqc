@@ -494,23 +494,25 @@ def _check_scenario_ids(spec, facts, scenarios, feature_line, add):
         line = sc.tags[0][0] if sc.tags else sc.line
         ids = [tag for _, tag in sc.tags if id_re.match(tag)]
         if not ids:
+            prefix, digits = _id_spec(spec or {})
             add("P15", "FAIL", line, "scenario %r has no scenario id tag (%s)"
-                % (_short(sc.title), format_scenario_id(spec, 1).replace("01", "NN")))
+                % (_short(sc.title), prefix + "N" * digits))
             continue
         if len(ids) > 1:
             add("P15", "FAIL", line, "scenario %r has %d scenario id tags; exactly one" % (_short(sc.title), len(ids)))
         for tag in ids:
-            if tag in seen:
+            number = int(id_re.match(tag).group(1))
+            if number in seen:
                 add("P15", "FAIL", line, "%s is also used on line %d; a scenario id is unique within the file"
-                    % (tag, seen[tag]))
+                    % (tag, seen[number]))
             else:
-                seen[tag] = line
+                seen[number] = line
     for line, tag in facts.examples_tags:
         if id_re.match(tag):
             add("P15", "FAIL", line, "%s is on an Examples block; a Scenario Outline carries one id on its own tag line" % tag)
     if not seen:
         return
-    highest = max(int(id_re.match(tag).group(1)) for tag in seen)
+    highest = max(seen)
     if facts.next_id is None:
         add("P16", "WARN", feature_line, "no '# Scenario IDs: next %s' line in the header"
             % format_scenario_id(spec, highest + 1))
@@ -644,6 +646,24 @@ class ProjectRules:
     notes: List[str] = field(default_factory=list)
 
 
+def registry_codes(data):
+    """Platform codes from either registry shape: flat {"platformCodes": {PLATFORM: CODE}} or
+    nested {"projects": {P: {"platforms": {PLATFORM: CODE}}}} (the union over projects). Strings only."""
+    found = set()
+    if not isinstance(data, dict):
+        return []
+    flat = data.get("platformCodes")
+    if isinstance(flat, dict):
+        found.update(code for code in flat.values() if isinstance(code, str))
+    projects = data.get("projects")
+    if isinstance(projects, dict):
+        for project in projects.values():
+            platforms = project.get("platforms") if isinstance(project, dict) else None
+            if isinstance(platforms, dict):
+                found.update(code for code in platforms.values() if isinstance(code, str))
+    return sorted(found)
+
+
 def load_project_rules(config_path):
     """Rules from one qaqc.json. A missing key is not an error; unreadable input is a note."""
     project = ProjectRules()
@@ -670,9 +690,12 @@ def load_project_rules(config_path):
         project.case_ids = dict(case_ids)
         registry = repo_root / (case_ids.get("registry") or ".claude/dr-platforms.json")
         try:
-            codes = json.loads(registry.read_text(encoding="utf-8")).get("platformCodes")
-            project.case_ids["codes"] = sorted(set(codes.values())) if isinstance(codes, dict) else None
-        except (OSError, ValueError, AttributeError):
+            codes = registry_codes(json.loads(registry.read_text(encoding="utf-8")))
+            project.case_ids["codes"] = codes or None
+            if not codes:
+                project.notes.append("platform-code registry %s has no platform codes; case-id codes not checked"
+                                     % registry)
+        except (OSError, ValueError, AttributeError, TypeError):
             project.case_ids["codes"] = None
             project.notes.append("platform-code registry %s not readable; case-id codes not checked" % registry)
     elif case_ids is not None:

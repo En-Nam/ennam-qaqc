@@ -179,6 +179,15 @@ class IdentifierConformTest(unittest.TestCase):
         self.assertIn("# Feature: Legacy  (DR-PA-001-001-01)\n#         (formerly DR-001-001-01)", self.result.text)
         self.assertIn("C11", self.result.changes)
 
+    def test_formerly_goes_on_the_source_line_when_there_is_one(self):
+        text = LEGACY_DR.replace("# Feature: Legacy  (DR-001-001-01)\n",
+                                 '# Feature: Legacy  (DR-001-001-01)\n# Source: "Spec" v1 (A, 01 Jan 2026)\n', 1)
+        result = cf.conform(text, ID_PROJECT)
+        self.assertIn('# Source: "Spec" v1 (A, 01 Jan 2026) (formerly DR-001-001-01)', result.text)
+        self.assertNotIn("#         (formerly", result.text)
+        self.assertIn("# Feature: Legacy  (DR-PA-001-001-01)", result.text)
+        self.assertEqual(cf.conform(result.text, ID_PROJECT).changes, set())
+
     def test_result_validates_clean(self):
         findings = vf.validate(self.result.text, ID_PROJECT.import_rules, ID_PROJECT.tag_rules,
                                ID_PROJECT.import_comment, ID_PROJECT.case_ids)

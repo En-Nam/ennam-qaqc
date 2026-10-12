@@ -15,7 +15,6 @@ Usage:   python3 validate_case_ids.py [--config PATH] [--root DIR] [--no-history
 
 Checks:
   S1 FAIL two .feature files share a case id
-  S1 FAIL two .feature files share a case id
   S2 FAIL a case id matches no DR detail_id        (only when caseIds.drSources is set)
      WARN caseIds.drSources is empty or absolute; the S2 check is skipped
   S3 FAIL a file's 'next' scenario id went down since HEAD
@@ -24,6 +23,8 @@ Checks:
      (titles duplicated on either side are skipped; G15 warns about duplicate titles)
   S6 WARN scenario ids retired since HEAD (scenario removed) - listed; never reuse them
   S7 WARN a file without a case id
+  S1, S2 and S7 need caseIds in qaqc.json; S3-S6 need tagRules.scenarioId. Without them the check
+  is skipped with a note, so a project that has not refreshed its rules sees nothing new.
 
 Exit:    0 no FAIL, 1 at least one FAIL, 64 usage error
          1 also when .claude/qaqc.json cannot be read or parsed as a JSON object
@@ -59,7 +60,9 @@ def dr_ids(repo_root, pattern):
 
 def head_text(repo_root, rel):
     try:
-        out = subprocess.run(["git", "show", "HEAD:%s" % rel], cwd=repo_root, capture_output=True, text=True)
+        # "./" makes git resolve the path against cwd, so .claude/ need not sit at the git toplevel.
+        out = subprocess.run(["git", "show", "HEAD:./%s" % rel], cwd=repo_root, capture_output=True,
+                             encoding="utf-8", errors="replace")
     except OSError:
         return None
     return out.stdout if out.returncode == 0 else None
@@ -101,8 +104,11 @@ def history_findings(rel, now, before, spec):
 
 def run(args, out):
     config = Path(args.config) if args.config else vf.find_config(Path.cwd())
-    if config is None or not Path(config).is_file():
-        out.write("FAIL: no .claude/qaqc.json found - run /ennam-qaqc:init first\n")
+    if config is None:
+        out.write("note: no .claude/qaqc.json found - nothing to check (run /ennam-qaqc:init)\n")
+        return 0
+    if not Path(config).is_file():
+        out.write("FAIL: cannot read %s (FileNotFoundError)\n" % config)
         return 1
     try:
         data = json.loads(Path(config).read_text(encoding="utf-8"))
@@ -114,11 +120,13 @@ def run(args, out):
     repo_root = Path(config).resolve().parent.parent
     root = Path(args.root) if args.root else repo_root / (data.get("testCasesRoot") or "test-cases")
     spec = (data.get("tagRules") or {}).get("scenarioId")
-    case_rules = data.get("caseIds") or {}
+    case_rules = data.get("caseIds") if isinstance(data.get("caseIds"), dict) else None
+    if case_rules is None:
+        out.write("note: caseIds not set - case ids not checked\n")
 
     findings, by_case = [], defaultdict(list)
     known = None
-    pattern = case_rules.get("drSources")
+    pattern = (case_rules or {}).get("drSources")
     if isinstance(pattern, str):
         if not pattern.strip() or pattern.startswith("/") or Path(pattern).is_absolute():
             findings.append(("WARN", "S2", "caseIds.drSources must be a glob relative to the repo root; "
@@ -134,7 +142,9 @@ def run(args, out):
             rel = str(path)
         now = vf.identifiers(path.read_text(encoding="utf-8"), spec or {})
         case_id = now["case_id"]
-        if not case_id or case_id.upper() in ("<TODO>", "TODO"):
+        if case_rules is None:
+            pass
+        elif not case_id or case_id.upper() in ("<TODO>", "TODO"):
             findings.append(("WARN", "S7", "%s: no case id" % rel))
         else:
             by_case[case_id].append(rel)

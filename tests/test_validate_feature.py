@@ -565,6 +565,19 @@ class IdentifierTest(unittest.TestCase):
     def test_p15_duplicate_id_fails(self):
         self.assertIn(("P15", "FAIL"), id_findings(IDS_VALID.replace("@TC-02", "@TC-01")))
 
+    def test_p15_duplicate_by_number_fails(self):
+        self.assertIn(("P15", "FAIL"), id_findings(IDS_VALID.replace("@TC-02", "@TC-001")))
+
+    def test_p15_missing_message_uses_placeholder(self):
+        found = [f.message for f in vf.validate(IDS_VALID.replace(" @TC-02", ""), None, ID_TAG_RULES, None, CASE_RULES)
+                 if f.code == "P15"]
+        self.assertTrue(any("(@TC-NN)" in message for message in found), found)
+        spec = {"prefix": "@T-", "digits": 3}
+        text = IDS_VALID.replace(" @TC-02", "")
+        found = [f.message for f in vf.validate(text, None, dict(TAG_RULES, scenarioId=spec), None, CASE_RULES)
+                 if f.code == "P15"]
+        self.assertTrue(any("(@T-NNN)" in message for message in found), found)
+
     def test_p15_id_on_examples_fails(self):
         text = IDS_VALID.replace("    Examples:\n", "    @TC-09\n    Examples:\n")
         self.assertIn(("P15", "FAIL"), id_findings(text))
@@ -614,6 +627,24 @@ class CaseIdConfigTest(unittest.TestCase):
         project = vf.load_project_rules(self.config)
         self.assertIsNone(project.case_ids["codes"])
         self.assertTrue(any("registry" in note for note in project.notes))
+
+    def test_nested_registry_shape_is_loaded(self):
+        (Path(self.tmp.name) / ".claude" / "dr-platforms.json").write_text(json.dumps(
+            {"projects": {"C4K": {"platforms": {"PARENT-APP": "C4KEXT", "WEB-PORTAL": "C4KPW"}}}}), encoding="utf-8")
+        project = vf.load_project_rules(self.config)
+        self.assertEqual(project.case_ids["codes"], ["C4KEXT", "C4KPW"])
+
+    def test_registry_without_codes_is_a_note(self):
+        (Path(self.tmp.name) / ".claude" / "dr-platforms.json").write_text(json.dumps({"other": 1}), encoding="utf-8")
+        project = vf.load_project_rules(self.config)
+        self.assertIsNone(project.case_ids["codes"])
+        self.assertTrue(any("no platform codes" in note for note in project.notes))
+
+    def test_registry_with_wrong_types_does_not_crash(self):
+        (Path(self.tmp.name) / ".claude" / "dr-platforms.json").write_text(json.dumps(
+            {"projects": {"A": 5, "B": {"platforms": ["x"]}}}), encoding="utf-8")
+        project = vf.load_project_rules(self.config)
+        self.assertIsNone(project.case_ids["codes"])
 
 
 if __name__ == "__main__":

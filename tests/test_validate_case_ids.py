@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -127,6 +128,57 @@ class SuiteTest(unittest.TestCase):
         code, out = self.run_suite()
         self.assertEqual(code, 0)
         self.assertIn("drSources", out)
+
+    def test_without_case_ids_config_skips_s1_s2_s7(self):
+        del self.config["caseIds"]
+        self.save_config()
+        self.write("b.feature", feature("DR-PA-001-001-01", [(1, "Other")], 2))
+        self.write("c.feature", feature("<TODO>", [(1, "Third")], 2))
+        code, out = self.run_suite()
+        self.assertEqual(code, 0)
+        self.assertNotIn("S1", out)
+        self.assertNotIn("S7", out)
+        self.assertIn("caseIds not set", out)
+
+    def test_no_config_anywhere_is_a_note(self):
+        with tempfile.TemporaryDirectory() as other:
+            out = io.StringIO()
+            cwd = os.getcwd()
+            os.chdir(other)
+            try:
+                code = vc.main([], out=out)
+            finally:
+                os.chdir(cwd)
+        self.assertEqual(code, 0)
+        self.assertIn("nothing to check", out.getvalue())
+
+    def test_explicit_missing_config_still_fails(self):
+        out = io.StringIO()
+        code = vc.main(["--config", str(self.repo / "nope.json")], out=out)
+        self.assertEqual(code, 1)
+        self.assertIn("cannot read", out.getvalue())
+
+    def test_history_works_when_claude_is_in_a_subfolder(self):
+        sub = self.repo / "qa"
+        (sub / ".claude").mkdir(parents=True)
+        (sub / "test-cases").mkdir()
+        (sub / ".claude" / "qaqc.json").write_text(json.dumps(self.config), encoding="utf-8")
+        target = sub / "test-cases" / "z.feature"
+        target.write_text(feature("DR-PA-001-001-01", [(1, "One"), (2, "Two"), (3, "Three")], 4), encoding="utf-8")
+        self.commit()
+        target.write_text(feature("DR-PA-001-001-01", [(1, "Two"), (2, "Three")], 4), encoding="utf-8")
+        out = io.StringIO()
+        code = vc.main(["--config", str(sub / ".claude" / "qaqc.json")], out=out)
+        self.assertEqual(code, 1)
+        self.assertIn("S5", out.getvalue())
+
+    def test_history_decodes_utf8(self):
+        self.write("a.feature", feature("DR-PA-001-001-01", [(1, "Đăng nhập"), (2, "Two"), (3, "Three")], 4))
+        self.commit()
+        self.write("a.feature", feature("DR-PA-001-001-01", [(1, "Two"), (2, "Đăng nhập"), (3, "Three")], 4))
+        code, out = self.run_suite()
+        self.assertEqual(code, 1)
+        self.assertIn("S5", out)
 
 
 if __name__ == "__main__":
